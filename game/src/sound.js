@@ -67,6 +67,18 @@ export function createSound() {
       blip(440, 0.12, 'sawtooth', 0.06);
       blip(587, 0.18, 'sawtooth', 0.06, 0.1);
     },
+    smoke() {
+      blip(220, 0.3, 'sine', 0.05);
+      blip(180, 0.35, 'sine', 0.04, 0.08);
+    },
+    lure() {
+      blip(1560, 0.08, 'sine', 0.07);
+      blip(2080, 0.1, 'sine', 0.06, 0.09);
+    },
+    emp() {
+      blip(880, 0.25, 'sawtooth', 0.05);
+      blip(220, 0.3, 'sawtooth', 0.05, 0.12);
+    },
     caught() {
       blip(392, 0.22, 'sawtooth', 0.08);
       blip(311, 0.3, 'sawtooth', 0.08, 0.16);

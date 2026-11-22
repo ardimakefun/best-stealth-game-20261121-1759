@@ -6,10 +6,13 @@
 // /output/dossier.json, the summary the judge reads, with the vendored
 // make.fun library.
 //
-// The game: a top-down stealth game in a museum gallery at night. The thief
-// steals the Moon Opal from the north gallery and reaches the green exit
-// unseen, past three patrolling guards whose yellow vision cones only see
-// what has a clear line of sight. Display cases and planters are real cover.
+// The game: a top-down stealth game in a museum gallery at night. Across
+// three heists the thief steals the Moon Opal, the Star Sapphire and the
+// Gilded Idol and reaches the green exit unseen, past fourteen patrolling
+// guards whose yellow vision cones only see what has a clear line of sight,
+// and four wall cameras whose orange cones sweep the halls. Display cases,
+// planters and pillars are real cover; smoke vials, lures and EMP pulses
+// are the thief's gadgets, refilled every heist.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:

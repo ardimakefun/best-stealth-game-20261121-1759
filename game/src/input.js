@@ -6,6 +6,9 @@
 export const ACTION_CONFIRM = 1;
 export const ACTION_PAUSE = 2;
 export const ACTION_MUTE = 4;
+export const ACTION_SMOKE = 8;
+export const ACTION_LURE = 16;
+export const ACTION_EMP = 32;
 
 const UP = new Set(['ArrowUp', 'KeyW']);
 const DOWN = new Set(['ArrowDown', 'KeyS']);
@@ -15,6 +18,9 @@ const SPRINT = new Set(['ShiftLeft', 'ShiftRight']);
 const CONFIRM = new Set(['Space', 'Enter']);
 const PAUSE = new Set(['KeyP', 'Escape']);
 const MUTE = new Set(['KeyM']);
+const SMOKE = new Set(['Digit1', 'KeyQ']);
+const LURE = new Set(['Digit2', 'KeyE']);
+const EMP = new Set(['Digit3', 'KeyR']);
 
 export function createInput(canvas, toField) {
   const keys = new Set();
@@ -30,6 +36,12 @@ export function createInput(canvas, toField) {
       if (!event.repeat) actions |= ACTION_PAUSE;
     } else if (MUTE.has(event.code)) {
       if (!event.repeat) actions |= ACTION_MUTE;
+    } else if (SMOKE.has(event.code)) {
+      if (!event.repeat) actions |= ACTION_SMOKE;
+    } else if (LURE.has(event.code)) {
+      if (!event.repeat) actions |= ACTION_LURE;
+    } else if (EMP.has(event.code)) {
+      if (!event.repeat) actions |= ACTION_EMP;
     } else return;
     event.preventDefault();
   });

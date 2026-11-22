@@ -3,12 +3,16 @@
 // with their vision cones, the exit, the HUD and the screens. The cones are
 // drawn under the guards but over the floor, so the danger is always visible.
 
-import { DETECTION, EXIT, FIELD, FONT, GUARD, PALETTE } from './config.js';
-import { LEVEL } from './level.js';
+import { CAMERA, DETECTION, EXIT, FIELD, FONT, GUARD, PALETTE } from './config.js';
+import { LEVELS } from './level.js';
+import { cameraFacing } from './cameras.js';
+import { createParticles, drawDust, stepParticles } from './particles.js';
+import { createRandom } from './random.js';
 
 export const SCREEN_TITLE = 'title';
 export const SCREEN_PLAY = 'play';
 export const SCREEN_PAUSED = 'paused';
+export const SCREEN_NEXT = 'next';
 export const SCREEN_OVER = 'over';
 
 function formatTime(seconds) {
@@ -29,6 +33,8 @@ export function fieldTransform(canvas) {
 
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
+  const particles = createParticles(createRandom(20261122), 42, FIELD.width, FIELD.height);
+  let lastTime = 0;
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -56,6 +62,66 @@ export function createRenderer(canvas) {
       ctx.arc(guard.x, guard.y, GUARD.coneRange * (state.meter / 100), guard.facing - GUARD.coneHalfAngle, guard.facing + GUARD.coneHalfAngle);
       ctx.closePath();
       ctx.fillStyle = alert ? 'rgba(255, 92, 60, 0.16)' : 'rgba(255, 214, 90, 0.10)';
+      ctx.fill();
+    }
+  }
+
+  function drawCamera(cam, state) {
+    const off = state.time < cam.disabledUntil;
+    const facing = cameraFacing(cam, state.time);
+    if (!off) {
+      ctx.beginPath();
+      ctx.moveTo(cam.x, cam.y);
+      ctx.arc(cam.x, cam.y, cam.range, facing - cam.halfAngle, facing + cam.halfAngle);
+      ctx.closePath();
+      ctx.fillStyle = PALETTE.cameraCone;
+      ctx.fill();
+      ctx.strokeStyle = PALETTE.cameraConeEdge;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    // Wall mount, lens, and the name a player learns to watch for.
+    ctx.beginPath();
+    ctx.arc(cam.x, cam.y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = off ? PALETTE.cameraOff : PALETTE.camera;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cam.x + Math.cos(facing) * 4, cam.y + Math.sin(facing) * 4, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = off ? PALETTE.cameraOff : PALETTE.cameraLens;
+    ctx.fill();
+    ctx.font = `600 10px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = off ? PALETTE.danger : PALETTE.muted;
+    ctx.fillText(off ? `${cam.name} OFF` : cam.name, cam.x, cam.y - 16);
+  }
+
+  function drawSmoke(state, time) {
+    for (const c of state.gadgets.clouds) {
+      const remain = Math.max(0, c.until - time);
+      const alpha = Math.min(1, remain / 1.5);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      for (const [ox, oy, r] of [[-22, 6, 30], [18, -8, 34], [0, 10, 26], [-4, -18, 24]]) {
+        ctx.beginPath();
+        ctx.arc(c.x + ox, c.y + oy, r, 0, Math.PI * 2);
+        ctx.fillStyle = PALETTE.smoke;
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    for (const l of state.gadgets.lures) {
+      const pulse = 1 + Math.sin(time * 8) * 0.15;
+      ctx.beginPath();
+      ctx.arc(l.x, l.y, 26 * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 211, 77, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(l.x, l.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = PALETTE.loot;
       ctx.fill();
     }
   }
@@ -151,6 +217,7 @@ export function createRenderer(canvas) {
   }
 
   function drawHud(state, best, muted) {
+    const artifact = state.level.artifact;
     ctx.fillStyle = 'rgba(8, 10, 18, 0.82)';
     ctx.fillRect(0, 0, FIELD.width, 46);
     ctx.fillStyle = PALETTE.gold;
@@ -160,7 +227,9 @@ export function createRenderer(canvas) {
     ctx.font = `500 14px ${FONT}`;
     ctx.fillStyle = PALETTE.text;
     ctx.textAlign = 'center';
-    const objective = state.opalTaken ? 'Opal secured — reach the green EXIT, unseen' : 'Steal the Moon Opal from the north gallery';
+    const objective = state.artifactTaken
+      ? `${artifact.name} secured — reach the green EXIT, unseen`
+      : `Steal the ${artifact.name} — heist ${state.levelIndex + 1} of ${LEVELS.length}`;
     ctx.fillText(objective, FIELD.width / 2, 20);
     // Detection meter under the objective.
     const mw = 240;
@@ -172,15 +241,22 @@ export function createRenderer(canvas) {
     if (frac > 0) ctx.fillRect(mx, 28, mw * frac, 8);
     ctx.font = `600 11px ${FONT}`;
     ctx.fillStyle = state.seen ? PALETTE.danger : PALETTE.muted;
-    ctx.fillText(state.seen ? 'SEEN!' : 'UNSEEN', FIELD.width / 2 + mw / 2 + 34, 36);
+    ctx.fillText(state.seen ? (state.seenBy === 'camera' ? 'CAMERA!' : 'SEEN!') : 'UNSEEN', FIELD.width / 2 + mw / 2 + 34, 36);
     ctx.textAlign = 'right';
     ctx.fillStyle = PALETTE.text;
     ctx.font = `600 14px ${FONT}`;
-    ctx.fillText(`◆ ${state.lootTaken}/3    ${state.opalTaken ? '⬢ OPAL' : '○ OPAL'}    ${formatTime(state.time)}    ${state.score} pts`, FIELD.width - 16, 29);
+    ctx.fillText(`◆ ${state.lootTaken}/${state.level.loot.length}    ${state.artifactTaken ? '⬢ ' + artifact.name : '○ ' + artifact.name}    ${formatTime(state.time)}    ${state.score} pts`, FIELD.width - 16, 29);
     ctx.textAlign = 'left';
     ctx.font = `500 12px ${FONT}`;
     ctx.fillStyle = PALETTE.muted;
     ctx.fillText(`WASD / arrows to move · click to walk · Shift to sprint · P pause · M ${muted ? 'unmute' : 'mute'}`, 16, FIELD.height - 12);
+    // Gadget counts, bottom right: what the thief still carries.
+    const g = state.gadgets;
+    ctx.textAlign = 'right';
+    ctx.font = `600 12px ${FONT}`;
+    ctx.fillStyle = PALETTE.text;
+    ctx.fillText(`1 smoke ×${g.smoke}   2 lure ×${g.lure}   3 EMP ×${g.emp}`, FIELD.width - 16, FIELD.height - 12);
+    ctx.textAlign = 'left';
   }
 
   function drawOverlay(title, lines, accent) {
@@ -230,6 +306,19 @@ export function createRenderer(canvas) {
     ctx.strokeStyle = PALETTE.carpetEdge;
     ctx.lineWidth = 3;
     ctx.strokeRect(40, 40, 1200, 300);
+    // Moonlight shafts falling through the high windows.
+    ctx.save();
+    ctx.fillStyle = 'rgba(190, 210, 255, 0.045)';
+    for (const [bx, bw] of [[180, 120], [560, 150], [980, 110]]) {
+      ctx.beginPath();
+      ctx.moveTo(bx, 0);
+      ctx.lineTo(bx + bw, 0);
+      ctx.lineTo(bx + bw + 90, FIELD.height);
+      ctx.lineTo(bx + 90, FIELD.height);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
     // Warm lamp pools on the floor.
     for (const [lx, ly] of [[320, 200], [960, 200], [640, 520], [200, 620], [1080, 620]]) {
       const grad = ctx.createRadialGradient(lx, ly, 10, lx, ly, 150);
@@ -273,6 +362,14 @@ export function createRenderer(canvas) {
         ctx.moveTo(b.x + 8, b.y + b.h - 10);
         ctx.lineTo(b.x + b.w - 14, b.y + 10);
         ctx.stroke();
+      } else if (b.kind === 'pillar') {
+        ctx.fillStyle = PALETTE.pillar;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.strokeStyle = PALETTE.pillarTrim;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
+        ctx.fillStyle = PALETTE.pillarTop;
+        ctx.fillRect(b.x, b.y, b.w, 4);
       } else {
         ctx.beginPath();
         ctx.arc(b.x + b.w / 2, b.y + b.h / 2, b.w / 2, 0, Math.PI * 2);
@@ -288,13 +385,14 @@ export function createRenderer(canvas) {
       }
     }
 
-    // The Moon Opal on its pedestal, north gallery.
-    if (!state.opalTaken) {
-      drawGem(LEVEL.opal.x, LEVEL.opal.y, 12, PALETTE.opal, time, 0);
+    // The artifact on its pedestal, in this heist's hall.
+    const artifact = state.level.artifact;
+    if (!state.artifactTaken) {
+      drawGem(artifact.x, artifact.y, 12, PALETTE.opal, time, 0);
       ctx.font = `600 11px ${FONT}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = PALETTE.opal;
-      ctx.fillText('MOON OPAL', LEVEL.opal.x, LEVEL.opal.y - 24);
+      ctx.fillText(artifact.name, artifact.x, artifact.y - 24);
     }
     for (const gem of state.loot) {
       if (!gem.taken) drawGem(gem.x, gem.y, 9, PALETTE.loot, time, gem.x);
@@ -302,8 +400,15 @@ export function createRenderer(canvas) {
 
     // Vision cones, then the guards standing in them.
     for (const g of state.guards) drawCone(g, state);
+    for (const cam of state.cameras) drawCamera(cam, state);
+    drawSmoke(state, time);
     for (const g of state.guards) drawGuard(g, state, time);
     drawPlayer(state.player, state, time);
+
+    // Dust motes drifting in the moonlight.
+    stepParticles(particles, Math.max(0, Math.min(0.1, time - lastTime)), FIELD.width, FIELD.height);
+    lastTime = time;
+    drawDust(ctx, particles, time);
 
     // Vignette: the gallery is dark at its edges.
     const vig = ctx.createRadialGradient(640, 360, 300, 640, 360, 760);
@@ -316,18 +421,28 @@ export function createRenderer(canvas) {
 
     if (screen === SCREEN_TITLE) {
       drawOverlay('MOONLIGHT GALLERY', [
-        'A thief. A museum. One Moon Opal, three night guards.',
-        'Steal the Opal, then reach the green EXIT — unseen.',
+        'A thief. A museum. Three heists, fourteen guards, four cameras.',
+        'Steal each artifact, then reach the green EXIT — unseen.',
         'Hide behind cases and planters: a guard only sees',
         'what its yellow cone touches with a clear line of sight.',
+        'Cameras sweep orange cones — EMP them, smoke them, or time them.',
+        '1 smoke · 2 lure · 3 EMP — gadgets refill every heist.',
         '',
         'Press SPACE or click to start',
       ], PALETTE.gold);
     } else if (screen === SCREEN_PAUSED) {
       drawOverlay('PAUSED', ['Press P or SPACE to keep sneaking.'], PALETTE.muted);
+    } else if (screen === SCREEN_NEXT) {
+      drawOverlay('HEIST COMPLETE', [
+        `${state.level.artifact.name} secured — ${state.score} points so far.`,
+        `Next: ${LEVELS[state.levelIndex + 1].name} — ${LEVELS[state.levelIndex + 1].subtitle}.`,
+        '',
+        'Press SPACE or click for the next heist',
+      ], PALETTE.exit);
     } else if (screen === SCREEN_OVER && state.status === 'won') {
       drawOverlay('CLEAN GETAWAY', [
-        `Out in ${formatTime(state.time)} with ${state.lootTaken}/3 gems — ${state.score} points.`,
+        `All three artifacts out in ${formatTime((state.totalTime ?? 0) + state.time)} — ${state.score} points.`,
+        `${state.lootTotal}/12 gems pocketed along the way.`,
         state.score > best ? 'A new best getaway!' : `Best getaway: ${best} points.`,
         '',
         'Press SPACE or click to play again',

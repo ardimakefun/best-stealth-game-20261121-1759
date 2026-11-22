@@ -1,17 +1,17 @@
-// The autopilots behind the screenshot scenes. Both play the real rules
-// forward from a fresh world, steering the thief along a route with A*
-// over a coarse grid, so the route goes around cases and planters instead
-// of pushing into them.
+// The autopilots behind the screenshot scenes and the proof that every
+// heist can be won. Both play the real rules forward from a fresh world,
+// steering the thief along a route with A* over a coarse grid, so the route
+// goes around cases and planters instead of pushing into them.
 //
 // The careful pilot is a patient thief: before it takes a step it simulates
-// the guards forward and only moves when the step stays out of every cone
-// for the whole crossing; when the meter climbs it retreats to a hiding
-// spot no cone ever reaches and waits there until the meter drains. The
-// reckless pilot walks straight into the nearest guard's cone and is caught.
+// the guards — and the cameras — forward and only moves when the step stays
+// out of every cone for the whole crossing; when the meter climbs it
+// retreats to a hiding spot no cone ever reaches and waits there until the
+// meter drains. The reckless pilot walks straight into the nearest guard's
+// cone and is caught.
 
 import { GUARD, PLAYER } from './config.js';
-import { HIDE_SPOTS, WIN_ROUTE } from './level.js';
-import { pointInCone } from './sight.js';
+import { pointInCameraCone, pointInCone } from './sight.js';
 import { stepGuard } from './guards.js';
 
 const CELL = 40;
@@ -88,33 +88,25 @@ function cloneGuard(g) {
 }
 
 /**
- * True when point (x,y) falls inside any guard's cone at any moment in the
- * next `seconds`, the guards simulated forward from their current state.
+ * True when point (x,y) falls inside any guard's cone — or any live
+ * camera's sweeping cone — at any moment in the next `seconds`, the guards
+ * simulated forward and the cameras swept forward from the state's time.
  * This is how the pilot times a crossing instead of walking into a sweep.
  */
 function willBeSeenSoon(x, y, state, seconds) {
   const clones = state.guards.map(cloneGuard);
   const steps = Math.max(1, Math.ceil(seconds / 0.15));
   for (let i = 0; i < steps; i += 1) {
+    const t = state.time + i * 0.15;
     for (const g of clones) stepGuard(g, 0.15, null);
     for (const g of clones) {
       if (pointInCone(x, y, g, state.blockers, GUARD.coneRange, GUARD.coneHalfAngle)) return true;
     }
-  }
-  return false;
-}
-
-function nearestHideSpot(x, y) {
-  let best = HIDE_SPOTS[0];
-  let bestDist = Infinity;
-  for (const s of HIDE_SPOTS) {
-    const d = Math.hypot(s.x - x, s.y - y);
-    if (d < bestDist) {
-      bestDist = d;
-      best = s;
+    for (const cam of state.cameras) {
+      if (pointInCameraCone(x, y, cam, t, state.blockers)) return true;
     }
   }
-  return best;
+  return false;
 }
 
 function directionTo(p, tx, ty) {
@@ -124,7 +116,10 @@ function directionTo(p, tx, ty) {
   return { x: dx / len, y: dy / len };
 }
 
-export function createPilot(route = WIN_ROUTE) {
+/** A careful pilot for one level: its route and hiding spots come from the level. */
+export function createPilot(level) {
+  const route = level.winRoute;
+  const hideSpots = level.hideSpots;
   let index = 0;
   let path = null;
   let pathIndex = 0;
@@ -133,6 +128,44 @@ export function createPilot(route = WIN_ROUTE) {
   let stuckTime = 0;
   let retreating = false;
   let hideSpot = null;
+  /** True when followPath's last call waited because the next node is swept. */
+  let blockedByCone = false;
+
+  function nearestSafeHideSpot(x, y, state) {
+    // The hiding spot the thief can actually reach: for each spot, walk
+    // its path until the first node that stays out of every cone, and score
+    // the spot by how far along the path that node is. A spot whose first
+    // step is swept still counts if the path clears a node or two in — the
+    // thief is already being seen, so standing still is not an option.
+    // Falls back to the nearest spot when no path clears at all.
+    let best = null;
+    let bestDist = Infinity;
+    let fallback = null;
+    let fallbackDist = Infinity;
+    for (const s of hideSpots) {
+      const d = Math.hypot(s.x - x, s.y - y);
+      if (d < fallbackDist) {
+        fallbackDist = d;
+        fallback = s;
+      }
+      const p = findPath(x, y, s.x, s.y, state.blockers);
+      if (!p || p.length < 2) continue;
+      let walked = 0;
+      let clearAt = Infinity;
+      for (let i = 1; i < Math.min(p.length, 8); i += 1) {
+        walked += Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y);
+        if (!willBeSeenSoon(p[i].x, p[i].y, state, walked / PLAYER.speed + 1.0)) {
+          clearAt = walked;
+          break;
+        }
+      }
+      if (clearAt < bestDist) {
+        bestDist = clearAt;
+        best = s;
+      }
+    }
+    return best ?? fallback;
+  }
 
   function followPath(state, dest) {
     const p = state.player;
@@ -168,7 +201,18 @@ export function createPilot(route = WIN_ROUTE) {
       lastY = p.y;
       stuckTime = 0;
     }
-    return { x: dx / dist, y: dy / dist };
+    // The next node, and how long reaching it takes: only step out when the
+    // node stays out of every cone for the whole crossing. A retreat that
+    // walks into a cone is worse than waiting — unless this spot is about
+    // to be swept too, in which case moving is the only chance.
+    blockedByCone = false;
+    const crossSeconds = dist / PLAYER.speed + 1.0;
+    if (willBeSeenSoon(node.x, node.y, state, crossSeconds)) {
+      blockedByCone = true;
+      if (willBeSeenSoon(p.x, p.y, state, 3.0)) return directionTo(p, node.x, node.y);
+      return null;
+    }
+    return directionTo(p, node.x, node.y);
   }
 
   return {
@@ -179,6 +223,19 @@ export function createPilot(route = WIN_ROUTE) {
       stuckTime = 0;
       retreating = false;
       hideSpot = null;
+      blockedByCone = false;
+    },
+    /** Diagnostics for the verification scripts: route progress, the
+     *  current path, and whether the pilot is retreating or cone-blocked. */
+    debug() {
+      return {
+        index,
+        pathLength: path ? path.length : 0,
+        pathIndex,
+        retreating,
+        hideSpot,
+        blockedByCone,
+      };
     },
     /** The move vector for this step, or null to stand still. */
     move(state) {
@@ -186,10 +243,12 @@ export function createPilot(route = WIN_ROUTE) {
       const p = state.player;
 
       // Retreat: the meter climbed. Run to the nearest hiding spot and wait
-      // there until the meter has drained.
+      // there until the meter has drained. The retreat path is cone-checked
+      // like any other: walking into a cone while fleeing gets the thief
+      // caught, as the cellar proved.
       if (state.meter > 25 && !retreating) {
         retreating = true;
-        hideSpot = nearestHideSpot(p.x, p.y);
+        hideSpot = nearestSafeHideSpot(p.x, p.y, state);
         path = null;
       }
       if (retreating) {
@@ -210,46 +269,17 @@ export function createPilot(route = WIN_ROUTE) {
         path = null;
         return null;
       }
-      // The next node, and how long reaching it takes: only step out when
-      // the node stays out of every cone for the whole crossing.
-      const node = path && path[pathIndex] ? path[pathIndex] : null;
-      if (!node) {
-        path = findPath(p.x, p.y, target.x, target.y, state.blockers);
-        pathIndex = 0;
-        lastX = p.x;
-        lastY = p.y;
-        stuckTime = 0;
-        if (!path) return null;
+      const mv = followPath(state, target);
+      // The way ahead is swept — and this spot will be swept within four
+      // seconds too. Do not wait here to be seen: retreat now, while the
+      // meter is still low, and come back when the patrol has passed.
+      if (blockedByCone && willBeSeenSoon(p.x, p.y, state, 4.0)) {
+        retreating = true;
+        hideSpot = nearestSafeHideSpot(p.x, p.y, state);
+        path = null;
         return null;
       }
-      const dist = Math.hypot(node.x - p.x, node.y - p.y);
-      if (dist < 10) {
-        pathIndex += 1;
-        return null;
-      }
-      // Stuck against something the grid did not foresee: replan.
-      if (Math.hypot(p.x - lastX, p.y - lastY) < 2) {
-        stuckTime += 1 / 60;
-        if (stuckTime > 1) {
-          path = null;
-          return null;
-        }
-      } else {
-        lastX = p.x;
-        lastY = p.y;
-        stuckTime = 0;
-      }
-      const crossSeconds = dist / PLAYER.speed + 0.7;
-      if (willBeSeenSoon(node.x, node.y, state, crossSeconds)) {
-        // Wait here only if this spot stays safe; otherwise retreat.
-        if (willBeSeenSoon(p.x, p.y, state, 2.0)) {
-          retreating = true;
-          hideSpot = nearestHideSpot(p.x, p.y);
-          path = null;
-        }
-        return null;
-      }
-      return directionTo(p, node.x, node.y);
+      return mv;
     },
     get done() {
       return index >= route.length;

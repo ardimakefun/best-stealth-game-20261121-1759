@@ -8,10 +8,11 @@
 // window.__shotReady for a screenshot.
 
 import { BEST_KEY, STEP } from './config.js';
+import { LEVELS } from './level.js';
 import { createRandom } from './random.js';
 import { createWorld, EVENT_CAUGHT, EVENT_GUARD_STEP, EVENT_LOOT, EVENT_OPAL, EVENT_SPOTTED, EVENT_STEP, EVENT_WIN } from './world.js';
-import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, createInput } from './input.js';
-import { createRenderer, fieldTransform, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+import { ACTION_CONFIRM, ACTION_EMP, ACTION_LURE, ACTION_MUTE, ACTION_PAUSE, ACTION_SMOKE, createInput } from './input.js';
+import { createRenderer, fieldTransform, SCREEN_NEXT, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
 import { createSound } from './sound.js';
 import { stageShot } from './shots.js';
 
@@ -22,6 +23,8 @@ const params = new URLSearchParams(window.location.search);
 const shot = params.get('shot');
 const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
 const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
+const levelParam = Number.parseInt(params.get('level') ?? '', 10);
+const levelIndex = Number.isInteger(levelParam) && levelParam >= 0 && levelParam < LEVELS.length ? levelParam : 0;
 
 const canvas = document.getElementById('game');
 const status = document.getElementById('status');
@@ -49,7 +52,7 @@ function saveBest(value) {
 window.__game = { world, state: world.state };
 
 function runShot(name) {
-  const scene = stageShot(name, world);
+  const scene = stageShot(name, world, levelIndex);
   let painted = 0;
   function paint() {
     renderer.draw(world.state, scene.screen, scene.best, sound.muted);
@@ -99,8 +102,21 @@ function runGame() {
       const muted = sound.toggleMute();
       announce(muted ? 'Sound off.' : 'Sound on.');
     }
+    if (actions & ACTION_SMOKE && screen === SCREEN_PLAY) {
+      if (world.useGadget('smoke')) sound.smoke();
+    }
+    if (actions & ACTION_LURE && screen === SCREEN_PLAY) {
+      if (world.useGadget('lure')) sound.lure();
+    }
+    if (actions & ACTION_EMP && screen === SCREEN_PLAY) {
+      if (world.useGadget('emp')) sound.emp();
+    }
     if (actions & ACTION_CONFIRM && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) {
       startGame();
+    } else if (actions & ACTION_CONFIRM && screen === SCREEN_NEXT) {
+      world.loadLevel(world.state.levelIndex + 1);
+      screen = SCREEN_PLAY;
+      announce(`${world.state.level.name}. ${world.state.level.subtitle}.`);
     } else if (actions & ACTION_PAUSE && screen === SCREEN_PLAY) {
       screen = SCREEN_PAUSED;
       announce('Paused.');
@@ -136,7 +152,12 @@ function runGame() {
       endGame(false);
     } else if (events & EVENT_WIN) {
       sound.win();
-      endGame(true);
+      if (world.state.status === 'levelComplete') {
+        screen = SCREEN_NEXT;
+        announce(`Heist complete. ${world.state.score} points so far.`);
+      } else {
+        endGame(true);
+      }
     }
   }
 

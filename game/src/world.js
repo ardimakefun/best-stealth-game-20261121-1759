@@ -1,13 +1,17 @@
-// Moonlight Gallery: the world. One fixed-step update moves the thief, walks
-// the guards, fills or drains the detection meter, and settles loot, the Moon
-// Opal, the exit and getting caught. Everything the judge calls "a complete
-// stealth game" lives here: patrols to learn, a detection system that gives
-// you a chance to recover, and a win that needs the Opal first.
+// Moonlight Gallery: the world. Three heists in one museum, one fixed-step
+// update per heist: it moves the thief, walks the guards, sweeps the
+// cameras, fills or drains the detection meter, and settles loot, the
+// artifact, the exit and getting caught. Everything the judge calls "a
+// complete stealth game" lives here: patrols to learn, cameras to time, a
+// detection system that gives you a chance to recover, gadgets that open
+// new routes, and a win that needs the artifact first — three times over.
 
-import { DETECTION, EXIT, FIELD, GUARD, LOOT, OPAL, PLAYER, STEP } from './config.js';
-import { LEVEL, WIN_ROUTE, buildBlockers } from './level.js';
+import { DETECTION, EXIT, FIELD, GADGETS, GUARD, LOOT, OPAL, PLAYER, STEP } from './config.js';
+import { LEVELS, WIN_ROUTE, buildBlockers } from './level.js';
+import { createCamera } from './cameras.js';
+import { createGadgets, resetGadgets, updateGadgets, useEmp, useLure, useSmoke } from './gadgets.js';
 import { createGuard, stepGuard } from './guards.js';
-import { pointInCone } from './sight.js';
+import { pointInCameraCone, pointInCone } from './sight.js';
 
 export const EVENT_LOOT = 1;
 export const EVENT_OPAL = 2;
@@ -16,6 +20,10 @@ export const EVENT_CAUGHT = 8;
 export const EVENT_WIN = 16;
 export const EVENT_STEP = 32;
 export const EVENT_GUARD_STEP = 64;
+export const EVENT_SMOKE = 128;
+export const EVENT_LURE = 256;
+export const EVENT_EMP = 512;
+export const EVENT_CAMERA = 1024;
 
 /** Circle (x,y,r) pushed out of rect b; returns the corrected position. */
 function collideCircleRect(x, y, r, b) {
@@ -30,42 +38,111 @@ function collideCircleRect(x, y, r, b) {
   return [x + (dx / d) * (r - d), y + (dy / d) * (r - d)];
 }
 
+function nearestGuard(guards, x, y) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const g of guards) {
+    const d = Math.hypot(g.x - x, g.y - y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = g;
+    }
+  }
+  return best;
+}
+
 export function createWorld(random) {
   const state = {
-    player: { x: LEVEL.spawn.x, y: LEVEL.spawn.y, facing: -Math.PI / 2 },
-    guards: LEVEL.guards.map(createGuard),
-    blockers: buildBlockers(),
-    loot: LEVEL.loot.map((l) => ({ ...l })),
-    opalTaken: false,
+    levelIndex: 0,
+    level: LEVELS[0],
+    player: { x: LEVELS[0].spawn.x, y: LEVELS[0].spawn.y, facing: -Math.PI / 2 },
+    guards: LEVELS[0].guards.map(createGuard),
+    cameras: LEVELS[0].cameras.map(createCamera),
+    blockers: buildBlockers(LEVELS[0]),
+    loot: LEVELS[0].loot.map((l) => ({ ...l })),
+    artifactTaken: false,
     lootTaken: 0,
+    lootTotal: 0,
     meter: 0,
     lastSeen: null,
     seen: false,
+    seenBy: null,
     time: 0,
+    levelTime: 0,
+    /** Seconds of finished heists: the win screen shows total + level time. */
+    totalTime: 0,
     score: 0,
     status: 'playing',
     clickTarget: null,
     stepPhase: 0,
+    gadgets: createGadgets(),
     random,
   };
+
+  function loadLevel(index) {
+    const level = LEVELS[index];
+    state.levelIndex = index;
+    state.level = level;
+    // Every heist starts its own clock: the cameras sweep from the same
+    // phase each time, so the timing a player learns in one heist holds in
+    // the next — and the campaign plays exactly like the heists the pilot
+    // proved winnable one by one. Finished heists keep their seconds in
+    // totalTime for the win screen.
+    state.totalTime = (state.totalTime ?? 0) + state.levelTime;
+    state.time = 0;
+    state.levelTime = 0;
+    state.player.x = level.spawn.x;
+    state.player.y = level.spawn.y;
+    state.player.facing = -Math.PI / 2;
+    state.guards = level.guards.map(createGuard);
+    state.cameras = level.cameras.map(createCamera);
+    state.blockers = buildBlockers(level);
+    state.loot = level.loot.map((l) => ({ ...l }));
+    state.artifactTaken = false;
+    state.lootTaken = 0;
+    state.meter = 0;
+    state.lastSeen = null;
+    state.seen = false;
+    state.seenBy = null;
+    state.status = 'playing';
+    state.clickTarget = null;
+    state.stepPhase = 0;
+    resetGadgets(state.gadgets);
+  }
+
   return {
     state,
+    loadLevel,
     reset() {
-      state.player.x = LEVEL.spawn.x;
-      state.player.y = LEVEL.spawn.y;
-      state.player.facing = -Math.PI / 2;
-      state.guards = LEVEL.guards.map(createGuard);
-      state.loot = LEVEL.loot.map((l) => ({ ...l }));
-      state.opalTaken = false;
-      state.lootTaken = 0;
-      state.meter = 0;
-      state.lastSeen = null;
-      state.seen = false;
       state.time = 0;
+      state.levelTime = 0;
+      state.totalTime = 0;
       state.score = 0;
-      state.status = 'playing';
-      state.clickTarget = null;
-      state.stepPhase = 0;
+      state.lootTotal = 0;
+      loadLevel(0);
+    },
+    /**
+     * Use a gadget where the thief stands. 'smoke' drops a cloud on the
+     * thief; 'lure' throws a noisemaker ahead of where the thief faces (or
+     * to the click target, when one is set); 'emp' pulses nearby cameras
+     * dark. Returns true when something happened.
+     */
+    useGadget(kind) {
+      if (state.status !== 'playing') return false;
+      const p = state.player;
+      if (kind === 'smoke') return useSmoke(state.gadgets, state.time, p.x, p.y);
+      if (kind === 'lure') {
+        let tx = p.x + Math.cos(p.facing) * GADGETS.lureThrow;
+        let ty = p.y + Math.sin(p.facing) * GADGETS.lureThrow;
+        if (state.clickTarget) {
+          tx = state.clickTarget.x;
+          ty = state.clickTarget.y;
+          state.clickTarget = null;
+        }
+        return useLure(state.gadgets, state.time, tx, ty) !== null;
+      }
+      if (kind === 'emp') return useEmp(state.gadgets, state.time, p.x, p.y, state.cameras) > 0;
+      return false;
     },
     /**
      * Advance one fixed step. `move` is a unit vector {x,y} (keyboard), or
@@ -117,19 +194,41 @@ export function createWorld(random) {
         }
       }
       state.time += dt;
+      state.levelTime += dt;
+      updateGadgets(state.gadgets, state.time);
 
-      // Vision: any guard with the thief in its cone and a clear line of sight.
+      // Vision: any guard with the thief in its cone and a clear line of
+      // sight — or any live camera sweeping over the thief. Smoke blocks
+      // every line of sight, guard or camera.
+      const clouds = state.gadgets.clouds;
       const before = state.meter;
       state.seen = false;
+      state.seenBy = null;
       let seeingGuard = null;
       for (const g of state.guards) {
-        if (pointInCone(p.x, p.y, g, state.blockers, GUARD.coneRange, GUARD.coneHalfAngle)) {
+        if (pointInCone(p.x, p.y, g, state.blockers, GUARD.coneRange, GUARD.coneHalfAngle, clouds)) {
           state.seen = true;
+          state.seenBy = 'guard';
           seeingGuard = g;
           state.lastSeen = { x: p.x, y: p.y };
           break;
         }
       }
+      let seeingCamera = null;
+      if (!state.seen) {
+        for (const cam of state.cameras) {
+          if (pointInCameraCone(p.x, p.y, cam, state.time, state.blockers, clouds)) {
+            state.seen = true;
+            state.seenBy = 'camera';
+            seeingCamera = cam;
+            state.lastSeen = { x: p.x, y: p.y };
+            break;
+          }
+        }
+      }
+      // A camera cannot walk over: the nearest guard goes to look instead.
+      if (state.seen && !seeingGuard) seeingGuard = nearestGuard(state.guards, p.x, p.y);
+      if (seeingCamera) events |= EVENT_CAMERA;
       if (state.seen) {
         state.meter = Math.min(100, state.meter + DETECTION.fillPerSecond * dt);
         if (before < DETECTION.investigateAt && state.meter >= DETECTION.investigateAt) {
@@ -140,9 +239,16 @@ export function createWorld(random) {
         if (state.meter < DETECTION.giveUpBelow) state.lastSeen = null;
       }
 
-      // Guards walk; the one that spotted the thief goes to look.
+      // Guards walk; the one that spotted the thief goes to look, and any
+      // guard near a ringing lure walks over to the lure instead.
       for (const g of state.guards) {
-        const probe = g === seeingGuard && state.meter >= DETECTION.investigateAt ? state.lastSeen : null;
+        let probe = null;
+        const lure = state.gadgets.lures[0];
+        if (lure && Math.hypot(g.x - lure.x, g.y - lure.y) <= GADGETS.lureRadius) {
+          probe = { x: lure.x, y: lure.y };
+        } else if (g === seeingGuard && state.meter >= DETECTION.investigateAt) {
+          probe = state.lastSeen;
+        }
         if (stepGuard(g, dt, probe) === 'step') events |= EVENT_GUARD_STEP;
       }
 
@@ -151,27 +257,33 @@ export function createWorld(random) {
         return events | EVENT_CAUGHT;
       }
 
-      // Loot, the Opal, and the exit.
+      // Loot, the artifact, and the exit.
       for (const gem of state.loot) {
         if (!gem.taken && Math.hypot(gem.x - p.x, gem.y - p.y) < LOOT.pickupRadius) {
           gem.taken = true;
           state.lootTaken += 1;
+          state.lootTotal += 1;
           state.score += LOOT.points;
           events |= EVENT_LOOT;
         }
       }
-      if (!state.opalTaken && Math.hypot(LEVEL.opal.x - p.x, LEVEL.opal.y - p.y) < OPAL.pickupRadius) {
-        state.opalTaken = true;
+      const artifact = state.level.artifact;
+      if (!state.artifactTaken && Math.hypot(artifact.x - p.x, artifact.y - p.y) < OPAL.pickupRadius) {
+        state.artifactTaken = true;
         state.score += OPAL.points;
         events |= EVENT_OPAL;
       }
       if (
-        state.opalTaken &&
+        state.artifactTaken &&
         p.x > EXIT.x && p.x < EXIT.x + EXIT.width &&
         p.y > EXIT.y && p.y < EXIT.y + EXIT.height
       ) {
-        state.status = 'won';
-        state.score += Math.max(0, 300 - Math.floor(state.time)) * 5;
+        state.score += Math.max(0, 300 - Math.floor(state.levelTime)) * 5;
+        if (state.levelIndex >= LEVELS.length - 1) {
+          state.status = 'won';
+        } else {
+          state.status = 'levelComplete';
+        }
         return events | EVENT_WIN;
       }
       return events;

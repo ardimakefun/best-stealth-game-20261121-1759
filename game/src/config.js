@@ -41,6 +41,37 @@ export const LOOT = { radius: 10, pickupRadius: 30, points: 150 };
 export const OPAL = { radius: 12, pickupRadius: 34, points: 500 };
 export const EXIT = { x: 20, y: 618, width: 100, height: 82 };
 
+/** Cameras: wall watchers with a sweeping cone. */
+export const CAMERA = {
+  range: 260,
+  /** Half-angle of the camera cone, in radians. */
+  halfAngle: 0.5,
+  /** How far the cone swings from its base angle, in radians. */
+  sweepAmp: 0.7,
+  /** Radians a second the sweep advances. */
+  sweepSpeed: 0.5,
+  /** Seconds an EMP keeps a camera dark. */
+  disabledSeconds: 6,
+};
+
+/** Gadgets: what the thief carries into every heist (refilled per heist). */
+export const GADGETS = {
+  smoke: 2,
+  lure: 2,
+  emp: 2,
+  smokeRadius: 75,
+  smokeSeconds: 4.5,
+  /** Seconds a thrown lure keeps ringing. */
+  lureSeconds: 2.5,
+  /** Guards this far from a lure walk over to look at it. */
+  lureRadius: 340,
+  /** How far ahead of the thief a lure lands. */
+  lureThrow: 170,
+  /** Cameras this far from the thief go dark on an EMP. */
+  empRadius: 300,
+  empSeconds: 6,
+};
+
 export const PALETTE = {
   backdrop: '#0b0e16',
   floor: '#171b28',
@@ -63,6 +94,16 @@ export const PALETTE = {
   coneEdge: 'rgba(255, 214, 90, 0.45)',
   coneAlert: 'rgba(255, 92, 60, 0.28)',
   coneAlertEdge: 'rgba(255, 92, 60, 0.6)',
+  camera: '#ff9f43',
+  cameraLens: '#ffd166',
+  cameraCone: 'rgba(255, 159, 67, 0.16)',
+  cameraConeEdge: 'rgba(255, 159, 67, 0.5)',
+  cameraOff: '#5a6274',
+  smoke: 'rgba(205, 210, 220, 0.30)',
+  smokeEdge: 'rgba(205, 210, 220, 0.5)',
+  pillar: '#262c3d',
+  pillarTop: '#3d4560',
+  pillarTrim: '#c9a24b',
   player: '#3fd2c0',
   playerHood: '#0f3d38',
   text: '#eef1f5',
