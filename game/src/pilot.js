@@ -10,8 +10,9 @@
 // meter drains. The reckless pilot walks straight into the nearest guard's
 // cone and is caught.
 
-import { GUARD, PLAYER } from './config.js';
+import { GUARD, LASER, PLAYER } from './config.js';
 import { pointInCameraCone, pointInCone } from './sight.js';
+import { closestPointOnLaser, distanceToLaser, laserActive, pointTripsLaser, segmentLaserCrossing } from './lasers.js';
 import { stepGuard } from './guards.js';
 
 const CELL = 40;
@@ -89,9 +90,10 @@ function cloneGuard(g) {
 
 /**
  * True when point (x,y) falls inside any guard's cone — or any live
- * camera's sweeping cone — at any moment in the next `seconds`, the guards
- * simulated forward and the cameras swept forward from the state's time.
- * This is how the pilot times a crossing instead of walking into a sweep.
+ * camera's sweeping cone, or on any live laser beam — at any moment in
+ * the next `seconds`, the guards simulated forward and the cameras and
+ * lasers swept forward from the state's time. This is how the pilot times
+ * a crossing instead of walking into a sweep or a live beam.
  */
 function willBeSeenSoon(x, y, state, seconds) {
   const clones = state.guards.map(cloneGuard);
@@ -104,6 +106,9 @@ function willBeSeenSoon(x, y, state, seconds) {
     }
     for (const cam of state.cameras) {
       if (pointInCameraCone(x, y, cam, t, state.blockers)) return true;
+    }
+    for (const laser of state.lasers) {
+      if (laserActive(laser, t) && distanceToLaser(x, y, laser) <= LASER.tripRadius) return true;
     }
   }
   return false;
@@ -167,8 +172,35 @@ export function createPilot(level) {
     return best ?? fallback;
   }
 
+  /**
+   * True when stepping from `p` to `node` would cross a laser beam that is
+   * live when the thief reaches it or while clearing it.
+   */
+  function laserBlocksStep(p, node, state) {
+    for (const laser of state.lasers) {
+      const cross = segmentLaserCrossing(p.x, p.y, node.x, node.y, laser);
+      if (!cross) continue;
+      const reachSeconds = Math.hypot(cross.x - p.x, cross.y - p.y) / PLAYER.speed;
+      const reachAt = state.time + reachSeconds;
+      if (laserActive(laser, reachAt) || laserActive(laser, reachAt + 0.5)) return true;
+    }
+    return false;
+  }
+
   function followPath(state, dest) {
     const p = state.player;
+    // Escape first: standing on a live beam fills the meter, and the
+    // pilot can stop within the trip radius while waiting for the dark
+    // beat — the beam goes live under its feet, as the Crown Vault
+    // proved. Step straight away from the beam's nearest point until
+    // clear of it, then go back to pathing.
+    for (const laser of state.lasers) {
+      if (pointTripsLaser(p.x, p.y, laser, state.time)) {
+        const c = closestPointOnLaser(p.x, p.y, laser);
+        const away = directionTo(c, p.x, p.y);
+        if (away.x !== 0 || away.y !== 0) return away;
+      }
+    }
     if (!path) {
       path = findPath(p.x, p.y, dest.x, dest.y, state.blockers);
       pathIndex = 0;
@@ -212,6 +244,11 @@ export function createPilot(level) {
       if (willBeSeenSoon(p.x, p.y, state, 3.0)) return directionTo(p, node.x, node.y);
       return null;
     }
+    // A laser beam across this leg: only step out when the beam is dark
+    // when the thief reaches it and while clearing it. Waiting is bounded
+    // — the beam goes dark every cycle — and standing still here is safe,
+    // so this is a wait, not a retreat: blockedByCone stays false.
+    if (laserBlocksStep(p, node, state)) return null;
     return directionTo(p, node.x, node.y);
   }
 

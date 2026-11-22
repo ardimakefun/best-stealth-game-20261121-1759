@@ -6,6 +6,7 @@
 import { CAMERA, DETECTION, EXIT, FIELD, FONT, GUARD, PALETTE } from './config.js';
 import { LEVELS } from './level.js';
 import { cameraFacing } from './cameras.js';
+import { laserActive } from './lasers.js';
 import { createParticles, drawDust, stepParticles } from './particles.js';
 import { createRandom } from './random.js';
 
@@ -96,6 +97,51 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'center';
     ctx.fillStyle = off ? PALETTE.danger : PALETTE.muted;
     ctx.fillText(off ? `${cam.name} OFF` : cam.name, cam.x, cam.y - 16);
+  }
+
+  function drawLaser(laser, state) {
+    const on = laserActive(laser, state.time);
+    const pulse = 0.55 + Math.sin(state.time * 6) * 0.25;
+    // The beam itself: a bright red line when live, a faint dashed one
+    // when dark, so the thief always sees where the tripwire is.
+    ctx.save();
+    if (on) {
+      ctx.globalAlpha = pulse;
+      ctx.strokeStyle = PALETTE.laser;
+      ctx.lineWidth = 4;
+      ctx.shadowColor = PALETTE.laser;
+      ctx.shadowBlur = 14;
+    } else {
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = PALETTE.laserOff;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 8]);
+    }
+    ctx.beginPath();
+    ctx.moveTo(laser.x1, laser.y1);
+    ctx.lineTo(laser.x2, laser.y2);
+    ctx.stroke();
+    ctx.restore();
+    // Emitter posts at both ends, with the beam's name.
+    for (const [ex, ey] of [[laser.x1, laser.y1], [laser.x2, laser.y2]]) {
+      ctx.beginPath();
+      ctx.arc(ex, ey, 7, 0, Math.PI * 2);
+      ctx.fillStyle = on ? PALETTE.laserPost : PALETTE.cameraOff;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = on ? '#ffd166' : PALETTE.muted;
+      ctx.fill();
+    }
+    ctx.font = `600 10px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = on ? PALETTE.danger : PALETTE.muted;
+    const mx = (laser.x1 + laser.x2) / 2;
+    const my = (laser.y1 + laser.y2) / 2;
+    ctx.fillText(on ? `${laser.name} LIVE` : `${laser.name} OFF`, mx, my - 12);
   }
 
   function drawSmoke(state, time) {
@@ -241,7 +287,7 @@ export function createRenderer(canvas) {
     if (frac > 0) ctx.fillRect(mx, 28, mw * frac, 8);
     ctx.font = `600 11px ${FONT}`;
     ctx.fillStyle = state.seen ? PALETTE.danger : PALETTE.muted;
-    ctx.fillText(state.seen ? (state.seenBy === 'camera' ? 'CAMERA!' : 'SEEN!') : 'UNSEEN', FIELD.width / 2 + mw / 2 + 34, 36);
+    ctx.fillText(state.seen ? (state.seenBy === 'camera' ? 'CAMERA!' : state.seenBy === 'laser' ? 'LASER!' : 'SEEN!') : 'UNSEEN', FIELD.width / 2 + mw / 2 + 34, 36);
     ctx.textAlign = 'right';
     ctx.fillStyle = PALETTE.text;
     ctx.font = `600 14px ${FONT}`;
@@ -398,9 +444,10 @@ export function createRenderer(canvas) {
       if (!gem.taken) drawGem(gem.x, gem.y, 9, PALETTE.loot, time, gem.x);
     }
 
-    // Vision cones, then the guards standing in them.
+    // Vision cones, lasers, then the guards standing in them.
     for (const g of state.guards) drawCone(g, state);
     for (const cam of state.cameras) drawCamera(cam, state);
+    for (const laser of state.lasers) drawLaser(laser, state);
     drawSmoke(state, time);
     for (const g of state.guards) drawGuard(g, state, time);
     drawPlayer(state.player, state, time);
@@ -421,11 +468,12 @@ export function createRenderer(canvas) {
 
     if (screen === SCREEN_TITLE) {
       drawOverlay('MOONLIGHT GALLERY', [
-        'A thief. A museum. Three heists, fourteen guards, four cameras.',
+        'A thief. A museum. Four heists, twenty guards, seven cameras, seven lasers.',
         'Steal each artifact, then reach the green EXIT — unseen.',
         'Hide behind cases and planters: a guard only sees',
         'what its yellow cone touches with a clear line of sight.',
         'Cameras sweep orange cones — EMP them, smoke them, or time them.',
+        'Red lasers pulse across the doors — cross on the dark beat, or EMP them.',
         '1 smoke · 2 lure · 3 EMP — gadgets refill every heist.',
         '',
         'Press SPACE or click to start',
@@ -440,9 +488,10 @@ export function createRenderer(canvas) {
         'Press SPACE or click for the next heist',
       ], PALETTE.exit);
     } else if (screen === SCREEN_OVER && state.status === 'won') {
+      const totalLoot = LEVELS.reduce((n, l) => n + l.loot.length, 0);
       drawOverlay('CLEAN GETAWAY', [
-        `All three artifacts out in ${formatTime((state.totalTime ?? 0) + state.time)} — ${state.score} points.`,
-        `${state.lootTotal}/12 gems pocketed along the way.`,
+        `All four artifacts out in ${formatTime((state.totalTime ?? 0) + state.time)} — ${state.score} points.`,
+        `${state.lootTotal}/${totalLoot} gems pocketed along the way.`,
         state.score > best ? 'A new best getaway!' : `Best getaway: ${best} points.`,
         '',
         'Press SPACE or click to play again',

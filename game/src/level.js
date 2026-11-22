@@ -1,19 +1,22 @@
-// Moonlight Gallery: three heists in one museum, each a level of its own.
+// Moonlight Gallery: four heists in one museum, each a level of its own.
 // Every heist is a room (or two) the thief crosses top-down: blockers that
 // stop movement and sight, guards on patrol loops a player can learn,
-// cameras sweeping their cones, loot to grab, one great artifact to steal,
-// and the green exit in the south-west corner, reached unseen.
+// cameras sweeping their cones, laser tripwires that pulse live and dark,
+// loot to grab, one great artifact to steal, and the green exit in the
+// south-west corner, reached unseen.
 //
 // Heist 1, The Moon Opal, is the gallery the first build proved winnable;
-// its layout, route and hiding spots are unchanged. Heist 2 adds two
-// cameras and three more guards to a vault hall; heist 3, the cellar, is
-// tighter still, with five guards, two cameras and a guard who patrols
-// straight through the door between the halls.
+// heist 2 adds two cameras and three more guards to a vault hall; heist 3,
+// the cellar, is tighter still, with five guards, two cameras and a guard
+// who patrols straight through the door between the halls; heist 4, the
+// Crown Vault, is the hardest hall: six guards, two cameras, two lasers.
 //
 // Every blocker is an axis-aligned rectangle: walls, cases, planters and
 // pillars all block movement and a guard's line of sight, so hiding behind
 // one is real. Guard waypoint legs never cross a blocker: a guard that
-// walked through a wall would look broken and its cone would lie.
+// walked through a wall would look broken and its cone would lie. Laser
+// beams span door gaps and lanes the thief must cross on the dark beat —
+// never the only way through, and always with an off window.
 
 export const WALL = 20;
 
@@ -34,13 +37,17 @@ export function buildBlockers(level) {
 export const LEVELS = [
   {
     name: 'The Moon Opal',
-    subtitle: 'North Gallery — three guards, no cameras',
+    subtitle: 'North Gallery — three guards, one camera, one laser',
     artifact: { name: 'MOON OPAL', x: 640, y: 108 },
     spawn: { x: 1150, y: 640 },
     loot: [
       { x: 120, y: 90, taken: false },
       { x: 1160, y: 90, taken: false },
       { x: 640, y: 650, taken: false },
+      // Two more gems for the second pass: the south-west corner Ivo
+      // rarely looks at, and the north-east corner under Mara's line.
+      { x: 320, y: 650, taken: false },
+      { x: 980, y: 90, taken: false },
     ],
     guards: [
       {
@@ -69,7 +76,14 @@ export const LEVELS = [
         ],
       },
     ],
-    cameras: [],
+    cameras: [
+      { name: 'CAM A', x: 640, y: 24, baseAngle: Math.PI / 2, sweepAmp: 0.7, sweepSpeed: 0.45, phase: 0.4 },
+    ],
+    // One tripwire across the single door gap: the thief crosses it on the
+    // dark beat, or spends an EMP on it.
+    lasers: [
+      { name: 'LASER 1', x1: 880, y1: 360, x2: 1000, y2: 360, phase: 0 },
+    ],
     // Middle wall, with one door gap (x 880..1000) between the galleries.
     walls: [
       { x: 20, y: 350, w: 860, h: WALL, kind: 'wall' },
@@ -90,12 +104,14 @@ export const LEVELS = [
       { x: 1070, y: 610, w: 60, h: 60, kind: 'planter' },
     ],
     pillars: [],
-    /** Hiding spots the simulation proved no guard's cone ever reaches. */
+    /** Hiding spots the simulation proved no guard's cone, camera or
+     *  laser ever reaches. The (1160,520) spot the first build used is
+     *  gone: Runa's east lane sees it from her west end. */
     hideSpots: [
       { x: 1150, y: 640 },
       { x: 120, y: 640 },
       { x: 120, y: 500 },
-      { x: 1160, y: 520 },
+      { x: 1240, y: 440 },
       { x: 400, y: 160 },
     ],
     /** The thief's route to a clean getaway: loot, the Opal, then the exit. */
@@ -174,6 +190,12 @@ export const LEVELS = [
     cameras: [
       { name: 'CAM A', x: 640, y: 24, baseAngle: Math.PI / 2, sweepAmp: 0.7, sweepSpeed: 0.45, phase: 0 },
       { name: 'CAM B', x: 1256, y: 360, baseAngle: Math.PI, sweepAmp: 0.7, sweepSpeed: 0.5, phase: 1.3 },
+    ],
+    // A tripwire across each door gap, staggered: the west one guards the
+    // route the pilot takes, the east one the way back.
+    lasers: [
+      { name: 'LASER 1', x1: 420, y1: 360, x2: 520, y2: 360, phase: 0 },
+      { name: 'LASER 2', x1: 880, y1: 360, x2: 1000, y2: 360, phase: 2.0 },
     ],
     // Middle wall, with two door gaps (x 420..520 and x 880..1000).
     walls: [
@@ -281,6 +303,12 @@ export const LEVELS = [
       { name: 'CAM A', x: 24, y: 360, baseAngle: 0, sweepAmp: 0.7, sweepSpeed: 0.5, phase: 0.6 },
       { name: 'CAM B', x: 1256, y: 360, baseAngle: Math.PI, sweepAmp: 0.7, sweepSpeed: 0.45, phase: 2.1 },
     ],
+    // One tripwire across the single door gap, and one across the south
+    // hall the pilot must cross to reach the door.
+    lasers: [
+      { name: 'LASER 1', x1: 600, y1: 360, x2: 700, y2: 360, phase: 1.0 },
+      { name: 'LASER 2', x1: 380, y1: 520, x2: 700, y2: 520, phase: 2.5 },
+    ],
     // Middle wall, with one door gap (x 600..700).
     walls: [
       { x: 20, y: 350, w: 580, h: WALL, kind: 'wall' },
@@ -330,6 +358,137 @@ export const LEVELS = [
       { x: 120, y: 90 },
       { x: 1160, y: 90 },
       { x: 650, y: 400 },
+      { x: 70, y: 660 },
+    ],
+  },
+  {
+    name: 'The Obsidian Crown',
+    subtitle: 'Crown Vault — six guards, two cameras, two lasers',
+    artifact: { name: 'OBSIDIAN CROWN', x: 640, y: 90 },
+    spawn: { x: 1200, y: 650 },
+    loot: [
+      { x: 120, y: 90, taken: false },
+      { x: 1160, y: 90, taken: false },
+      { x: 300, y: 650, taken: false },
+      { x: 980, y: 650, taken: false },
+      // North of the (560,600) case: 20 px clear of it, inside the
+      // 30 px pickup radius from the north side.
+      { x: 640, y: 580, taken: false },
+    ],
+    guards: [
+      {
+        name: 'Kara',
+        waypoints: [
+          { x: 200, y: 120 },
+          { x: 1080, y: 120 },
+          { x: 1080, y: 300 },
+          { x: 200, y: 300 },
+        ],
+      },
+      {
+        name: 'Dimo',
+        waypoints: [
+          { x: 940, y: 440 },
+          { x: 940, y: 660 },
+          { x: 400, y: 660 },
+          { x: 400, y: 440 },
+        ],
+      },
+      {
+        name: 'Yara',
+        waypoints: [
+          { x: 1150, y: 160 },
+          { x: 1150, y: 330 },
+        ],
+      },
+      {
+        name: 'Elif',
+        waypoints: [
+          { x: 130, y: 160 },
+          { x: 130, y: 330 },
+        ],
+      },
+      {
+        name: 'Noor',
+        waypoints: [
+          { x: 300, y: 480 },
+          { x: 980, y: 480 },
+        ],
+      },
+      {
+        // Petr patrols straight through the west door gap, like Mira in
+        // the cellar: his vertical legs sit at x 450 and 490, inside the
+        // 420..520 gap, never through the wall.
+        name: 'Petr',
+        waypoints: [
+          { x: 450, y: 220 },
+          { x: 490, y: 220 },
+          { x: 490, y: 540 },
+          { x: 450, y: 540 },
+        ],
+      },
+    ],
+    cameras: [
+      { name: 'CAM A', x: 640, y: 24, baseAngle: Math.PI / 2, sweepAmp: 0.7, sweepSpeed: 0.4, phase: 0.9 },
+      { name: 'CAM B', x: 1256, y: 360, baseAngle: Math.PI, sweepAmp: 0.7, sweepSpeed: 0.55, phase: 2.4 },
+    ],
+    // A tripwire across each door gap, phased so both are live at the
+    // five-second mark of the start shot.
+    lasers: [
+      { name: 'LASER 1', x1: 420, y1: 360, x2: 520, y2: 360, phase: 0.5 },
+      { name: 'LASER 2', x1: 880, y1: 360, x2: 1000, y2: 360, phase: 1.0 },
+    ],
+    // Middle wall, with two door gaps (x 420..520 and x 880..1000).
+    walls: [
+      { x: 20, y: 350, w: 400, h: WALL, kind: 'wall' },
+      { x: 520, y: 350, w: 360, h: WALL, kind: 'wall' },
+      { x: 1000, y: 350, w: 260, h: WALL, kind: 'wall' },
+    ],
+    cases: [
+      { x: 340, y: 140, w: 90, h: 50, kind: 'case' },
+      { x: 820, y: 140, w: 90, h: 50, kind: 'case' },
+      { x: 560, y: 230, w: 160, h: 50, kind: 'case' },
+      { x: 240, y: 520, w: 90, h: 50, kind: 'case' },
+      { x: 1000, y: 520, w: 90, h: 50, kind: 'case' },
+      { x: 560, y: 600, w: 160, h: 50, kind: 'case' },
+    ],
+    planters: [
+      { x: 60, y: 300, w: 60, h: 60, kind: 'planter' },
+      { x: 1160, y: 300, w: 60, h: 60, kind: 'planter' },
+      { x: 120, y: 580, w: 60, h: 60, kind: 'planter' },
+      { x: 1120, y: 580, w: 60, h: 60, kind: 'planter' },
+    ],
+    pillars: [
+      { x: 300, y: 200, w: 60, h: 60, kind: 'pillar' },
+      { x: 920, y: 200, w: 60, h: 60, kind: 'pillar' },
+      { x: 300, y: 560, w: 60, h: 60, kind: 'pillar' },
+    ],
+    /** Hiding spots, every one a grid point the safe-spot scan proved no
+     *  guard's cone, camera or laser ever reaches (180 s standing still,
+     *  meter 0): the west wall, the east wall, the north-east corner, and
+     *  the spawn. The first draft's (760,560), (1000,440) and (960,120)
+     *  all failed the scan and are gone. */
+    hideSpots: [
+      { x: 1200, y: 650 },
+      { x: 40, y: 400 },
+      { x: 40, y: 560 },
+      { x: 1240, y: 400 },
+      { x: 1000, y: 200 },
+      { x: 200, y: 560 },
+    ],
+    /** The thief's route to a clean getaway: the south gems, the west
+     *  door, the Crown's gem, the Crown, back through the west door,
+     *  then the exit. Both door crossings use the west door the pilot
+     *  already proved: the east door's waiting spot sits in Kara's cone
+     *  arc and the pilot died there at 84 s. The north gems at (120,90)
+     *  and (1160,90) are left for the player: the heist is winnable,
+     *  the gems are a dare, not the route. */
+    winRoute: [
+      { x: 980, y: 650 },
+      { x: 470, y: 380 },
+      { x: 640, y: 580 },
+      { x: 640, y: 90 },
+      { x: 470, y: 380 },
       { x: 70, y: 660 },
     ],
   },

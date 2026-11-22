@@ -79,6 +79,10 @@ export function createSound() {
       blip(880, 0.25, 'sawtooth', 0.05);
       blip(220, 0.3, 'sawtooth', 0.05, 0.12);
     },
+    laser() {
+      blip(1200, 0.09, 'square', 0.05);
+      blip(1200, 0.09, 'square', 0.05, 0.12);
+    },
     caught() {
       blip(392, 0.22, 'sawtooth', 0.08);
       blip(311, 0.3, 'sawtooth', 0.08, 0.16);

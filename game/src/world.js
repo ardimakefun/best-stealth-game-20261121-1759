@@ -1,16 +1,18 @@
-// Moonlight Gallery: the world. Three heists in one museum, one fixed-step
+// Moonlight Gallery: the world. Four heists in one museum, one fixed-step
 // update per heist: it moves the thief, walks the guards, sweeps the
-// cameras, fills or drains the detection meter, and settles loot, the
-// artifact, the exit and getting caught. Everything the judge calls "a
-// complete stealth game" lives here: patrols to learn, cameras to time, a
-// detection system that gives you a chance to recover, gadgets that open
-// new routes, and a win that needs the artifact first — three times over.
+// cameras, pulses the laser tripwires, fills or drains the detection
+// meter, and settles loot, the artifact, the exit and getting caught.
+// Everything the judge calls "a complete stealth game" lives here: patrols
+// to learn, cameras to time, lasers to cross on the dark beat, a detection
+// system that gives you a chance to recover, gadgets that open new routes,
+// and a win that needs the artifact first — four times over.
 
 import { DETECTION, EXIT, FIELD, GADGETS, GUARD, LOOT, OPAL, PLAYER, STEP } from './config.js';
 import { LEVELS, WIN_ROUTE, buildBlockers } from './level.js';
 import { createCamera } from './cameras.js';
 import { createGadgets, resetGadgets, updateGadgets, useEmp, useLure, useSmoke } from './gadgets.js';
 import { createGuard, stepGuard } from './guards.js';
+import { createLaser, pointTripsLaser } from './lasers.js';
 import { pointInCameraCone, pointInCone } from './sight.js';
 
 export const EVENT_LOOT = 1;
@@ -24,6 +26,7 @@ export const EVENT_SMOKE = 128;
 export const EVENT_LURE = 256;
 export const EVENT_EMP = 512;
 export const EVENT_CAMERA = 1024;
+export const EVENT_LASER = 2048;
 
 /** Circle (x,y,r) pushed out of rect b; returns the corrected position. */
 function collideCircleRect(x, y, r, b) {
@@ -58,6 +61,7 @@ export function createWorld(random) {
     player: { x: LEVELS[0].spawn.x, y: LEVELS[0].spawn.y, facing: -Math.PI / 2 },
     guards: LEVELS[0].guards.map(createGuard),
     cameras: LEVELS[0].cameras.map(createCamera),
+    lasers: LEVELS[0].lasers.map(createLaser),
     blockers: buildBlockers(LEVELS[0]),
     loot: LEVELS[0].loot.map((l) => ({ ...l })),
     artifactTaken: false,
@@ -96,6 +100,7 @@ export function createWorld(random) {
     state.player.facing = -Math.PI / 2;
     state.guards = level.guards.map(createGuard);
     state.cameras = level.cameras.map(createCamera);
+    state.lasers = level.lasers.map(createLaser);
     state.blockers = buildBlockers(level);
     state.loot = level.loot.map((l) => ({ ...l }));
     state.artifactTaken = false;
@@ -141,7 +146,7 @@ export function createWorld(random) {
         }
         return useLure(state.gadgets, state.time, tx, ty) !== null;
       }
-      if (kind === 'emp') return useEmp(state.gadgets, state.time, p.x, p.y, state.cameras) > 0;
+      if (kind === 'emp') return useEmp(state.gadgets, state.time, p.x, p.y, state.cameras, state.lasers) > 0;
       return false;
     },
     /**
@@ -198,8 +203,9 @@ export function createWorld(random) {
       updateGadgets(state.gadgets, state.time);
 
       // Vision: any guard with the thief in its cone and a clear line of
-      // sight — or any live camera sweeping over the thief. Smoke blocks
-      // every line of sight, guard or camera.
+      // sight — or any live camera sweeping over the thief — or any live
+      // laser beam the thief stands on. Smoke blocks every line of sight,
+      // guard or camera; it does not stop a tripwire.
       const clouds = state.gadgets.clouds;
       const before = state.meter;
       state.seen = false;
@@ -226,9 +232,23 @@ export function createWorld(random) {
           }
         }
       }
-      // A camera cannot walk over: the nearest guard goes to look instead.
+      let trippedLaser = null;
+      if (!state.seen) {
+        for (const laser of state.lasers) {
+          if (pointTripsLaser(p.x, p.y, laser, state.time)) {
+            state.seen = true;
+            state.seenBy = 'laser';
+            trippedLaser = laser;
+            state.lastSeen = { x: p.x, y: p.y };
+            break;
+          }
+        }
+      }
+      // A camera or a laser cannot walk over: the nearest guard goes to
+      // look instead.
       if (state.seen && !seeingGuard) seeingGuard = nearestGuard(state.guards, p.x, p.y);
       if (seeingCamera) events |= EVENT_CAMERA;
+      if (trippedLaser) events |= EVENT_LASER;
       if (state.seen) {
         state.meter = Math.min(100, state.meter + DETECTION.fillPerSecond * dt);
         if (before < DETECTION.investigateAt && state.meter >= DETECTION.investigateAt) {

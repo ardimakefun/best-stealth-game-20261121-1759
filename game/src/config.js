@@ -72,6 +72,20 @@ export const GADGETS = {
   empSeconds: 6,
 };
 
+/** Lasers: tripwire beams across a doorway or a lane. A beam is live for
+ *  part of every cycle and dark for the rest, so a patient thief crosses
+ *  on the dark beat; an EMP switches it off for a few seconds. */
+export const LASER = {
+  /** Distance (px) from the beam at which the thief trips it. */
+  tripRadius: 14,
+  /** Seconds the beam is live in each cycle. */
+  onSeconds: 2.2,
+  /** Seconds the beam is dark in each cycle. */
+  offSeconds: 1.8,
+  /** Seconds an EMP keeps a laser dark. */
+  disabledSeconds: 6,
+};
+
 export const PALETTE = {
   backdrop: '#0b0e16',
   floor: '#171b28',
@@ -99,6 +113,10 @@ export const PALETTE = {
   cameraCone: 'rgba(255, 159, 67, 0.16)',
   cameraConeEdge: 'rgba(255, 159, 67, 0.5)',
   cameraOff: '#5a6274',
+  laser: '#ff2e4d',
+  laserEdge: 'rgba(255, 46, 77, 0.85)',
+  laserOff: 'rgba(255, 46, 77, 0.18)',
+  laserPost: '#ff5c3c',
   smoke: 'rgba(205, 210, 220, 0.30)',
   smokeEdge: 'rgba(205, 210, 220, 0.5)',
   pillar: '#262c3d',

@@ -8,7 +8,7 @@
 // - gadget: the pilot plays 12 seconds, then drops smoke and throws a lure.
 // - caught: the reckless pilot walks into a cone.
 // - end: the careful pilot plays the whole campaign, heist by heist, until
-//   the clean getaway — the win screen shows all three artifacts.
+//   the clean getaway — the win screen shows all four artifacts.
 
 import { LEVELS } from './level.js';
 import { STEP } from './config.js';
@@ -56,7 +56,7 @@ export function stageShot(name, world, levelIndex = 0) {
     return { screen: state.status === 'playing' ? SCREEN_PLAY : SCREEN_OVER, best: state.score };
   }
   if (name === 'end') {
-    // The whole campaign: win heist 1, then 2, then 3, each with its own
+    // The whole campaign: win heist 1, then 2, then 3, then 4, each with its own
     // careful pilot, until the clean getaway or the 600 s cap.
     for (let li = 0; li < LEVELS.length; li += 1) {
       world.loadLevel(li);

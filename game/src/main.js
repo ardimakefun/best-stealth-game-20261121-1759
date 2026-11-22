@@ -10,7 +10,7 @@
 import { BEST_KEY, STEP } from './config.js';
 import { LEVELS } from './level.js';
 import { createRandom } from './random.js';
-import { createWorld, EVENT_CAUGHT, EVENT_GUARD_STEP, EVENT_LOOT, EVENT_OPAL, EVENT_SPOTTED, EVENT_STEP, EVENT_WIN } from './world.js';
+import { createWorld, EVENT_CAUGHT, EVENT_GUARD_STEP, EVENT_LASER, EVENT_LOOT, EVENT_OPAL, EVENT_SPOTTED, EVENT_STEP, EVENT_WIN } from './world.js';
 import { ACTION_CONFIRM, ACTION_EMP, ACTION_LURE, ACTION_MUTE, ACTION_PAUSE, ACTION_SMOKE, createInput } from './input.js';
 import { createRenderer, fieldTransform, SCREEN_NEXT, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
 import { createSound } from './sound.js';
@@ -143,6 +143,7 @@ function runGame() {
     }
     if (events & EVENT_LOOT) sound.loot();
     if (events & EVENT_OPAL) sound.opal();
+    if (events & EVENT_LASER) sound.laser();
     if (events & EVENT_SPOTTED) {
       sound.spotted();
       announce('Spotted! Break line of sight!');

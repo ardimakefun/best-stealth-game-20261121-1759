@@ -7,12 +7,13 @@
 // make.fun library.
 //
 // The game: a top-down stealth game in a museum gallery at night. Across
-// three heists the thief steals the Moon Opal, the Star Sapphire and the
-// Gilded Idol and reaches the green exit unseen, past fourteen patrolling
-// guards whose yellow vision cones only see what has a clear line of sight,
-// and four wall cameras whose orange cones sweep the halls. Display cases,
-// planters and pillars are real cover; smoke vials, lures and EMP pulses
-// are the thief's gadgets, refilled every heist.
+// four heists the thief steals the Moon Opal, the Star Sapphire, the
+// Gilded Idol and the Obsidian Crown and reaches the green exit unseen,
+// past twenty patrolling guards whose yellow vision cones only see what
+// has a clear line of sight, seven wall cameras whose orange cones sweep
+// the halls, and seven laser tripwires that pulse live and dark across
+// the doors. Display cases, planters and pillars are real cover; smoke
+// vials, lures and EMP pulses are the thief's gadgets, refilled every heist.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
