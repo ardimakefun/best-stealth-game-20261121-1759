@@ -7,10 +7,10 @@
 // system that gives you a chance to recover, gadgets that open new routes,
 // and a win that needs the artifact first — five times over.
 
-import { DETECTION, EXIT, FIELD, GADGETS, GUARD, LOOT, OPAL, PLAYER, STEP } from './config.js';
+import { DETECTION, EXIT, FIELD, GADGETS, LOOT, OPAL, PLAYER, STEP } from './config.js';
 import { LEVELS, WIN_ROUTE, buildBlockers } from './level.js';
 import { createCamera } from './cameras.js';
-import { createGadgets, resetGadgets, updateGadgets, useEmp, useLure, useSmoke } from './gadgets.js';
+import { createGadgets, resetGadgets, updateGadgets, useEmp, useLoop, useLure, useSmoke } from './gadgets.js';
 import { createGuard, stepGuard } from './guards.js';
 import { createLaser, pointTripsLaser } from './lasers.js';
 import { pointInCameraCone, pointInCone } from './sight.js';
@@ -27,6 +27,7 @@ export const EVENT_LURE = 256;
 export const EVENT_EMP = 512;
 export const EVENT_CAMERA = 1024;
 export const EVENT_LASER = 2048;
+export const EVENT_LOOP = 4096;
 
 /** Circle (x,y,r) pushed out of rect b; returns the corrected position. */
 function collideCircleRect(x, y, r, b) {
@@ -155,6 +156,7 @@ export function createWorld(random) {
         return useLure(state.gadgets, state.time, tx, ty) !== null;
       }
       if (kind === 'emp') return useEmp(state.gadgets, state.time, p.x, p.y, state.cameras, state.lasers) > 0;
+      if (kind === 'loop') return useLoop(state.gadgets, state.time, p.x, p.y, state.cameras) !== null;
       return false;
     },
     /**
@@ -211,16 +213,18 @@ export function createWorld(random) {
       updateGadgets(state.gadgets, state.time);
 
       // Vision: any guard with the thief in its cone and a clear line of
-      // sight — or any live camera sweeping over the thief — or any live
-      // laser beam the thief stands on. Smoke blocks every line of sight,
-      // guard or camera; it does not stop a tripwire.
+      // sight — each guard sees with its own range and half-angle, so an
+      // elite's longer cone reaches farther — or any live camera sweeping
+      // over the thief — or any live laser beam the thief stands on.
+      // Smoke blocks every line of sight, guard or camera; it does not
+      // stop a tripwire.
       const clouds = state.gadgets.clouds;
       const before = state.meter;
       state.seen = false;
       state.seenBy = null;
       let seeingGuard = null;
       for (const g of state.guards) {
-        if (pointInCone(p.x, p.y, g, state.blockers, GUARD.coneRange, GUARD.coneHalfAngle, clouds)) {
+        if (pointInCone(p.x, p.y, g, state.blockers, g.coneRange, g.coneHalfAngle, clouds)) {
           state.seen = true;
           state.seenBy = 'guard';
           seeingGuard = g;

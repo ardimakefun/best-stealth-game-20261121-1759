@@ -11,7 +11,7 @@ import { BEST_KEY, STEP } from './config.js';
 import { LEVELS } from './level.js';
 import { createRandom } from './random.js';
 import { createWorld, EVENT_CAUGHT, EVENT_GUARD_STEP, EVENT_LASER, EVENT_LOOT, EVENT_OPAL, EVENT_SPOTTED, EVENT_STEP, EVENT_WIN } from './world.js';
-import { ACTION_CONFIRM, ACTION_EMP, ACTION_LURE, ACTION_MUTE, ACTION_PAUSE, ACTION_SMOKE, createInput } from './input.js';
+import { ACTION_CONFIRM, ACTION_EMP, ACTION_LOOP, ACTION_LURE, ACTION_MUTE, ACTION_PAUSE, ACTION_SMOKE, createInput } from './input.js';
 import { createRenderer, fieldTransform, SCREEN_NEXT, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
 import { createSound } from './sound.js';
 import { stageShot } from './shots.js';
@@ -110,6 +110,9 @@ function runGame() {
     }
     if (actions & ACTION_EMP && screen === SCREEN_PLAY) {
       if (world.useGadget('emp')) sound.emp();
+    }
+    if (actions & ACTION_LOOP && screen === SCREEN_PLAY) {
+      if (world.useGadget('loop')) sound.loop();
     }
     if (actions & ACTION_CONFIRM && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) {
       startGame();

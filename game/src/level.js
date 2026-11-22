@@ -53,6 +53,10 @@ export const LEVELS = [
       // rarely looks at, and the north-east corner under Mara's line.
       { x: 320, y: 650, taken: false },
       { x: 980, y: 90, taken: false },
+      // On the pilot's route, beside the waypoints it already visits:
+      // the door-gap gem north of the wall, and the Opal's neighbour.
+      { x: 928, y: 342, taken: false },
+      { x: 652, y: 132, taken: false },
     ],
     guards: [
       {
@@ -143,6 +147,8 @@ export const LEVELS = [
       // case, 31 px from the nearest standable point, 1 px past the
       // 30 px pickup radius: unreachable, and the pilot stalled on it.
       { x: 640, y: 560, taken: false },
+      // On the pilot's route, beside the waypoint it already visits.
+      { x: 652, y: 572, taken: false },
     ],
     guards: [
       {
@@ -259,6 +265,8 @@ export const LEVELS = [
       { x: 1160, y: 90, taken: false },
       { x: 300, y: 650, taken: false },
       { x: 980, y: 650, taken: false },
+      // On the pilot's route, beside the door waypoint it already visits.
+      { x: 638, y: 392, taken: false },
     ],
     guards: [
       {
@@ -379,6 +387,8 @@ export const LEVELS = [
       // North of the (560,600) case: 20 px clear of it, inside the
       // 30 px pickup radius from the north side.
       { x: 640, y: 580, taken: false },
+      // On the pilot's route, beside the west-door waypoint it already visits.
+      { x: 458, y: 392, taken: false },
     ],
     guards: [
       {
@@ -499,7 +509,7 @@ export const LEVELS = [
   },
   {
     name: 'The Crimson Vault',
-    subtitle: 'Crimson Vault — six guards, two cameras, two lasers',
+    subtitle: 'Crimson Vault — six guards (two elite), two cameras, two lasers',
     artifact: { name: 'CRIMSON RUBY', x: 640, y: 90 },
     spawn: { x: 1200, y: 650 },
     loot: [
@@ -510,6 +520,8 @@ export const LEVELS = [
       // North of the (560,600) case: 20 px clear of it, inside the
       // 30 px pickup radius from the north side.
       { x: 640, y: 580, taken: false },
+      // On the pilot's route, beside the west-door waypoint it already visits.
+      { x: 328, y: 392, taken: false },
     ],
     guards: [
       {
@@ -527,6 +539,9 @@ export const LEVELS = [
       },
       {
         name: 'Rufus',
+        // Elite: faster on patrol and a longer cone — the south hall's
+        // best watchman, marked amber.
+        elite: true,
         waypoints: [
           { x: 340, y: 440 },
           { x: 340, y: 660 },
@@ -550,9 +565,14 @@ export const LEVELS = [
       },
       {
         name: 'Cleo',
+        // Elite: faster on patrol and a longer cone — the south hall's
+        // second watchman, marked amber. Her beat runs the east half of
+        // the south hall only: the west half is the thief's retreat, and
+        // a 260 px cone sweeping the whole hall leaves no way through.
+        elite: true,
         waypoints: [
           { x: 980, y: 480 },
-          { x: 300, y: 480 },
+          { x: 600, y: 480 },
         ],
       },
       {

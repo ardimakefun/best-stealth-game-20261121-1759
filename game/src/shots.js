@@ -38,14 +38,31 @@ export function stageShot(name, world, levelIndex = 0) {
     return { screen: SCREEN_PLAY, best: 0 };
   }
   if (name === 'gadget') {
-    // Twelve seconds of careful play, then smoke on the thief, a breath
-    // for the cloud to hang, and a lure thrown ahead — one more second for
-    // the coin to ring and the guards to turn toward it. Both gadgets are
-    // still live when the frame is taken (smoke 4.5 s, lure 2.5 s).
+    // The pilot plays until it walks within loop reach of a camera — in
+    // the Star Sapphire that is the north-east leg toward CAM A — then
+    // loops the camera, drops smoke and throws a lure, so the frame shows
+    // all three at once: a frozen ice-blue cone labelled LOOP, a smoke
+    // cloud, and a ringing lure the guards turn toward. All three are
+    // still live when the frame is taken (loop 8 s, smoke 4.5 s, lure
+    // 2.5 s). If the pilot never comes in reach, the old 12-second scene
+    // runs instead, smoke and lure only.
     const pilot = createPilot(level);
-    for (let i = 0; i < GADGET_SECONDS / STEP; i += 1) {
+    let looped = false;
+    for (let i = 0; i < 150 / STEP; i += 1) {
       const events = world.step(STEP, pilot.move(state), false);
       if (events & (EVENT_CAUGHT | EVENT_WIN)) break;
+      if (state.status !== 'playing') break;
+      const near = state.cameras.some((cam) => Math.hypot(cam.x - state.player.x, cam.y - state.player.y) <= 295);
+      if (near) {
+        looped = world.useGadget('loop');
+        break;
+      }
+    }
+    if (!looped && state.status === 'playing') {
+      for (let i = 0; i < GADGET_SECONDS / STEP; i += 1) {
+        const events = world.step(STEP, pilot.move(state), false);
+        if (events & (EVENT_CAUGHT | EVENT_WIN)) break;
+      }
     }
     if (state.status === 'playing') {
       world.useGadget('smoke');
@@ -80,6 +97,13 @@ export function stageShot(name, world, levelIndex = 0) {
   for (let i = 0; i < limit / STEP; i += 1) {
     events = world.step(STEP, pilot.move(state), false);
     if (events & (EVENT_CAUGHT | EVENT_WIN)) break;
+  }
+  // The play frame tries a camera loop at the end: when the thief happens
+  // to stand within loop reach of a camera, the frozen cone shows too.
+  if (!reckless && state.status === 'playing') {
+    if (world.useGadget('loop')) {
+      for (let i = 0; i < 0.5 / STEP; i += 1) world.step(STEP, null, false);
+    }
   }
   const over = state.status !== 'playing';
   return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: state.score };

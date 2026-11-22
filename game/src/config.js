@@ -27,6 +27,16 @@ export const GUARD = {
   coneHalfAngle: 0.56,
 };
 
+/** Elite guards: faster on patrol, quicker to investigate, and a longer
+ *  cone — the museum's best watchmen, marked amber so a player reads the
+ *  threat at a glance. */
+export const ELITE = {
+  patrolSpeed: 97,
+  investigateSpeed: 120,
+  coneRange: 260,
+  coneHalfAngle: 0.56,
+};
+
 /** Detection meter: 0 hidden, 100 caught. */
 export const DETECTION = {
   fillPerSecond: 58,
@@ -59,6 +69,12 @@ export const GADGETS = {
   smoke: 2,
   lure: 2,
   emp: 2,
+  /** Camera loops: freeze one nearby camera's sweep in place. */
+  loop: 2,
+  /** Seconds a looped camera holds its angle. */
+  loopSeconds: 8,
+  /** How near a camera must be for the loop to reach it. */
+  loopRadius: 300,
   smokeRadius: 75,
   smokeSeconds: 4.5,
   /** Seconds a thrown lure keeps ringing. */
@@ -113,6 +129,15 @@ export const PALETTE = {
   cameraCone: 'rgba(255, 159, 67, 0.16)',
   cameraConeEdge: 'rgba(255, 159, 67, 0.5)',
   cameraOff: '#5a6274',
+  /** A looped camera holds its cone still, drawn in ice blue. */
+  loop: '#7fe7ff',
+  loopCone: 'rgba(127, 231, 255, 0.18)',
+  loopConeEdge: 'rgba(127, 231, 255, 0.55)',
+  /** Elite guards wear amber, with a longer, amber cone. */
+  elite: '#e8a13c',
+  eliteCap: '#ffe9b0',
+  eliteCone: 'rgba(232, 161, 60, 0.22)',
+  eliteConeEdge: 'rgba(232, 161, 60, 0.5)',
   laser: '#ff2e4d',
   laserEdge: 'rgba(255, 46, 77, 0.85)',
   laserOff: 'rgba(255, 46, 77, 0.18)',

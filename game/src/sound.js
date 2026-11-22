@@ -79,6 +79,11 @@ export function createSound() {
       blip(880, 0.25, 'sawtooth', 0.05);
       blip(220, 0.3, 'sawtooth', 0.05, 0.12);
     },
+    loop() {
+      // A held, icy two-note freeze: the camera's sweep stops where it is.
+      blip(1175, 0.4, 'triangle', 0.06);
+      blip(880, 0.4, 'triangle', 0.05, 0.12);
+    },
     laser() {
       blip(1200, 0.09, 'square', 0.05);
       blip(1200, 0.09, 'square', 0.05, 0.12);

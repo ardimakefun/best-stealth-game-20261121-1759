@@ -10,7 +10,7 @@
 // meter drains. The reckless pilot walks straight into the nearest guard's
 // cone and is caught.
 
-import { GUARD, LASER, PLAYER } from './config.js';
+import { LASER, PLAYER } from './config.js';
 import { pointInCameraCone, pointInCone } from './sight.js';
 import { closestPointOnLaser, distanceToLaser, laserActive, pointTripsLaser, segmentLaserCrossing } from './lasers.js';
 import { stepGuard } from './guards.js';
@@ -102,7 +102,9 @@ function willBeSeenSoon(x, y, state, seconds) {
     const t = state.time + i * 0.15;
     for (const g of clones) stepGuard(g, 0.15, null);
     for (const g of clones) {
-      if (pointInCone(x, y, g, state.blockers, GUARD.coneRange, GUARD.coneHalfAngle)) return true;
+      // Each guard is probed with its own cone: an elite's longer cone
+      // reaches farther than a regular guard's.
+      if (pointInCone(x, y, g, state.blockers, g.coneRange, g.coneHalfAngle)) return true;
     }
     for (const cam of state.cameras) {
       if (pointInCameraCone(x, y, cam, t, state.blockers)) return true;

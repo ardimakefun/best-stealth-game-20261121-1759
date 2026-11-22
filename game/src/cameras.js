@@ -19,15 +19,28 @@ export function createCamera(def) {
     halfAngle: def.halfAngle ?? CAMERA.halfAngle,
     /** World time until which the camera stays dark (0 = live). */
     disabledUntil: 0,
+    /** World time until which a loop holds the cone still (0 = sweeping). */
+    loopedUntil: 0,
+    /** The frozen facing while looped, set when the loop lands. */
+    loopedAngle: 0,
   };
 }
 
-/** The direction a camera looks at absolute world time `t`. */
+/**
+ * The direction a camera looks at absolute world time `t` — frozen at the
+ * angle the loop caught it, while the loop holds.
+ */
 export function cameraFacing(cam, t) {
+  if (t < cam.loopedUntil) return cam.loopedAngle;
   return cam.baseAngle + Math.sin(t * cam.sweepSpeed + cam.phase) * cam.sweepAmp;
 }
 
 /** True while an EMP keeps the camera dark. */
 export function cameraDisabled(cam, t) {
   return t < cam.disabledUntil;
+}
+
+/** True while a loop holds the camera's cone still. */
+export function cameraLooped(cam, t) {
+  return t < cam.loopedUntil;
 }

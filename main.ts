@@ -9,14 +9,15 @@
 // The game: a top-down stealth game in a museum gallery at night. Across
 // five heists the thief steals the Moon Opal, the Star Sapphire, the
 // Gilded Idol, the Obsidian Crown and the Crimson Ruby and reaches the
-// green exit unseen, past twenty-six patrolling guards whose yellow vision
-// cones only see what has a clear line of sight, nine wall cameras whose
-// orange cones sweep the halls, and nine laser tripwires that pulse live
-// and dark across the doors. Display cases, planters and pillars are real
-// cover; smoke vials, lures and EMP pulses are the thief's gadgets,
-// refilled every heist. Each heist is rated one to three stars — three
-// only for every gem and a ghost run, never seen at all — and a ghost
-// heist pays a 500-point bonus.
+// green exit unseen, past twenty-six patrolling guards — two of them elite
+// watchmen in the Crimson Vault, faster with longer amber cones — whose
+// yellow vision cones only see what has a clear line of sight, nine wall
+// cameras whose orange cones sweep the halls, and nine laser tripwires
+// that pulse live and dark across the doors. Display cases, planters and
+// pillars are real cover; smoke vials, lures, EMP pulses and camera loops
+// are the thief's gadgets, refilled every heist. Each heist is rated one
+// to three stars — three only for every gem and a ghost run, never seen at
+// all — and a ghost heist pays a 500-point bonus.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:

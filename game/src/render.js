@@ -48,19 +48,21 @@ export function createRenderer(canvas) {
   function drawCone(guard, state) {
     const alert = state.meter >= DETECTION.investigateAt;
     const suspicious = state.meter > 0;
+    // Each guard draws its own cone: an elite's reaches farther and is
+    // amber, so the longer threat reads at a glance.
     ctx.beginPath();
     ctx.moveTo(guard.x, guard.y);
-    ctx.arc(guard.x, guard.y, GUARD.coneRange, guard.facing - GUARD.coneHalfAngle, guard.facing + GUARD.coneHalfAngle);
+    ctx.arc(guard.x, guard.y, guard.coneRange, guard.facing - guard.coneHalfAngle, guard.facing + guard.coneHalfAngle);
     ctx.closePath();
-    ctx.fillStyle = alert ? PALETTE.coneAlert : PALETTE.cone;
+    ctx.fillStyle = alert ? PALETTE.coneAlert : (guard.elite ? PALETTE.eliteCone : PALETTE.cone);
     ctx.fill();
-    ctx.strokeStyle = alert ? PALETTE.coneAlertEdge : PALETTE.coneEdge;
+    ctx.strokeStyle = alert ? PALETTE.coneAlertEdge : (guard.elite ? PALETTE.eliteConeEdge : PALETTE.coneEdge);
     ctx.lineWidth = 1.5;
     ctx.stroke();
     if (suspicious) {
       ctx.beginPath();
       ctx.moveTo(guard.x, guard.y);
-      ctx.arc(guard.x, guard.y, GUARD.coneRange * (state.meter / 100), guard.facing - GUARD.coneHalfAngle, guard.facing + GUARD.coneHalfAngle);
+      ctx.arc(guard.x, guard.y, guard.coneRange * (state.meter / 100), guard.facing - guard.coneHalfAngle, guard.facing + guard.coneHalfAngle);
       ctx.closePath();
       ctx.fillStyle = alert ? 'rgba(255, 92, 60, 0.16)' : 'rgba(255, 214, 90, 0.10)';
       ctx.fill();
@@ -69,22 +71,25 @@ export function createRenderer(canvas) {
 
   function drawCamera(cam, state) {
     const off = state.time < cam.disabledUntil;
+    // A looped camera holds its cone still in ice blue, labelled LOOP,
+    // until the loop runs out — the cone stays live, just frozen.
+    const looped = !off && state.time < cam.loopedUntil;
     const facing = cameraFacing(cam, state.time);
     if (!off) {
       ctx.beginPath();
       ctx.moveTo(cam.x, cam.y);
       ctx.arc(cam.x, cam.y, cam.range, facing - cam.halfAngle, facing + cam.halfAngle);
       ctx.closePath();
-      ctx.fillStyle = PALETTE.cameraCone;
+      ctx.fillStyle = looped ? PALETTE.loopCone : PALETTE.cameraCone;
       ctx.fill();
-      ctx.strokeStyle = PALETTE.cameraConeEdge;
+      ctx.strokeStyle = looped ? PALETTE.loopConeEdge : PALETTE.cameraConeEdge;
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
     // Wall mount, lens, and the name a player learns to watch for.
     ctx.beginPath();
     ctx.arc(cam.x, cam.y, 10, 0, Math.PI * 2);
-    ctx.fillStyle = off ? PALETTE.cameraOff : PALETTE.camera;
+    ctx.fillStyle = off ? PALETTE.cameraOff : (looped ? PALETTE.loop : PALETTE.camera);
     ctx.fill();
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
@@ -95,8 +100,11 @@ export function createRenderer(canvas) {
     ctx.fill();
     ctx.font = `600 10px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = off ? PALETTE.danger : PALETTE.muted;
-    ctx.fillText(off ? `${cam.name} OFF` : cam.name, cam.x, cam.y - 16);
+    ctx.fillStyle = off ? PALETTE.danger : (looped ? PALETTE.loop : PALETTE.muted);
+    // Keep the label inside the field: a wall camera near the edge would
+    // otherwise clip its longer LOOP label off the canvas.
+    const labelX = Math.max(40, Math.min(FIELD.width - 40, cam.x));
+    ctx.fillText(off ? `${cam.name} OFF` : (looped ? `${cam.name} LOOP` : cam.name), labelX, cam.y - 16);
   }
 
   function drawLaser(laser, state) {
@@ -174,29 +182,31 @@ export function createRenderer(canvas) {
 
   function drawGuard(guard, state, time) {
     // A guard standing in another guard's cone is still drawn over its own cone.
+    // Elites wear amber with a gold ring, so the faster, farther-seeing
+    // watchman reads as a different threat at a glance.
     ctx.beginPath();
     ctx.arc(guard.x, guard.y, GUARD.radius, 0, Math.PI * 2);
-    ctx.fillStyle = PALETTE.guard;
+    ctx.fillStyle = guard.elite ? PALETTE.elite : PALETTE.guard;
     ctx.fill();
     ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.strokeStyle = guard.elite ? PALETTE.eliteCap : 'rgba(0,0,0,0.5)';
     ctx.stroke();
     // Cap and the direction the guard faces.
     ctx.beginPath();
     ctx.arc(guard.x, guard.y, GUARD.radius - 4, guard.facing - 1.1, guard.facing + 1.1);
-    ctx.strokeStyle = PALETTE.guardCap;
+    ctx.strokeStyle = guard.elite ? PALETTE.eliteCap : PALETTE.guardCap;
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(guard.x, guard.y);
     ctx.lineTo(guard.x + Math.cos(guard.facing) * (GUARD.radius + 8), guard.y + Math.sin(guard.facing) * (GUARD.radius + 8));
-    ctx.strokeStyle = PALETTE.guardCap;
+    ctx.strokeStyle = guard.elite ? PALETTE.eliteCap : PALETTE.guardCap;
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.font = `600 11px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = PALETTE.muted;
-    ctx.fillText(guard.name.toUpperCase(), guard.x, guard.y - GUARD.radius - 8);
+    ctx.fillStyle = guard.elite ? PALETTE.eliteCap : PALETTE.muted;
+    ctx.fillText(guard.elite ? `★ ${guard.name.toUpperCase()}` : guard.name.toUpperCase(), guard.x, guard.y - GUARD.radius - 8);
     if (guard.state === 'investigate') {
       ctx.font = `700 20px ${FONT}`;
       ctx.fillStyle = PALETTE.danger;
@@ -301,7 +311,7 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'right';
     ctx.font = `600 12px ${FONT}`;
     ctx.fillStyle = PALETTE.text;
-    ctx.fillText(`1 smoke ×${g.smoke}   2 lure ×${g.lure}   3 EMP ×${g.emp}`, FIELD.width - 16, FIELD.height - 12);
+    ctx.fillText(`1 smoke ×${g.smoke}   2 lure ×${g.lure}   3 EMP ×${g.emp}   4 loop ×${g.loop}`, FIELD.width - 16, FIELD.height - 12);
     ctx.textAlign = 'left';
   }
 
@@ -468,13 +478,13 @@ export function createRenderer(canvas) {
 
     if (screen === SCREEN_TITLE) {
       drawOverlay('MOONLIGHT GALLERY', [
-        'A thief. A museum. Five heists, twenty-six guards, nine cameras, nine lasers.',
+        'A thief. A museum. Five heists, twenty-six guards (two elite), nine cameras, nine lasers.',
         'Steal each artifact, then reach the green EXIT — unseen.',
         'Hide behind cases and planters: a guard only sees',
         'what its yellow cone touches with a clear line of sight.',
-        'Cameras sweep orange cones — EMP them, smoke them, or time them.',
+        'Cameras sweep orange cones — EMP them, loop them, smoke them, or time them.',
         'Red lasers pulse across the doors — cross on the dark beat, or EMP them.',
-        '1 smoke · 2 lure · 3 EMP — gadgets refill every heist.',
+        '1 smoke · 2 lure · 3 EMP · 4 loop — gadgets refill every heist.',
         '',
         'Press SPACE or click to start',
       ], PALETTE.gold);

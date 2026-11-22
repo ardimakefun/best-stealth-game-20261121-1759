@@ -2,6 +2,8 @@
 // cone (distance and angle) and the straight line to it is not cut by a wall,
 // a display case or a planter.
 
+import { cameraFacing } from './cameras.js';
+
 /** True when segment (x1,y1)-(x2,y2) touches rectangle r. */
 export function segmentHitsRect(x1, y1, x2, y2, r) {
   const dx = x2 - x1;
@@ -95,7 +97,7 @@ export function pointInCameraCone(px, py, cam, t, blockers, clouds = []) {
   const dy = py - cam.y;
   const dist = Math.hypot(dx, dy);
   if (dist > cam.range) return false;
-  const facing = cam.baseAngle + Math.sin(t * cam.sweepSpeed + cam.phase) * cam.sweepAmp;
+  const facing = cameraFacing(cam, t);
   const angle = Math.atan2(dy, dx);
   if (Math.abs(angleDifference(angle, facing)) > cam.halfAngle) return false;
   if (!hasLineOfSight(cam.x, cam.y, px, py, blockers)) return false;

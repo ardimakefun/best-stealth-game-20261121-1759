@@ -5,7 +5,7 @@
 // States: 'patrol' -> 'investigate' -> 'patrol'. The world owns detection;
 // this file owns where the guard walks and which way it faces.
 
-import { GUARD } from './config.js';
+import { ELITE, GUARD } from './config.js';
 
 function turnToward(guard, targetAngle, dt) {
   let diff = targetAngle - guard.facing;
@@ -29,6 +29,9 @@ function moveToward(guard, tx, ty, speed, dt) {
 
 export function createGuard(def) {
   const first = def.waypoints[0];
+  // An elite guard patrols faster, investigates faster, and sees farther:
+  // its own numbers travel with it, so the world, the pilot and the
+  // renderer all read the same cone.
   return {
     name: def.name,
     x: first.x,
@@ -41,6 +44,11 @@ export function createGuard(def) {
     investigate: null,
     lookTime: 0,
     stepPhase: 0,
+    elite: def.elite === true,
+    patrolSpeed: def.elite === true ? ELITE.patrolSpeed : GUARD.patrolSpeed,
+    investigateSpeed: def.elite === true ? ELITE.investigateSpeed : GUARD.investigateSpeed,
+    coneRange: def.elite === true ? ELITE.coneRange : GUARD.coneRange,
+    coneHalfAngle: def.elite === true ? ELITE.coneHalfAngle : GUARD.coneHalfAngle,
   };
 }
 
@@ -67,7 +75,7 @@ export function stepGuard(guard, dt, investigateAt) {
   }
   if (guard.state === 'investigate') {
     const target = guard.investigate;
-    if (target && moveToward(guard, target.x, target.y, GUARD.investigateSpeed, dt)) {
+    if (target && moveToward(guard, target.x, target.y, guard.investigateSpeed, dt)) {
       guard.lookTime += dt;
       turnToward(guard, guard.facing + 2.4 * dt, dt);
       if (guard.lookTime >= GUARD.investigateTime) {
@@ -87,7 +95,7 @@ export function stepGuard(guard, dt, investigateAt) {
         guard.wait = 0.4;
       }
     }
-    return guardStepped(guard, dt, GUARD.investigateSpeed) ? 'step' : null;
+    return guardStepped(guard, dt, guard.investigateSpeed) ? 'step' : null;
   }
   // Patrol: walk the loop, pausing at each waypoint.
   if (guard.wait > 0) {
@@ -95,9 +103,9 @@ export function stepGuard(guard, dt, investigateAt) {
     return null;
   }
   const target = guard.waypoints[guard.waypointIndex];
-  if (moveToward(guard, target.x, target.y, GUARD.patrolSpeed, dt)) {
+  if (moveToward(guard, target.x, target.y, guard.patrolSpeed, dt)) {
     guard.waypointIndex = (guard.waypointIndex + 1) % guard.waypoints.length;
     guard.wait = GUARD.waitAtWaypoint;
   }
-  return guardStepped(guard, dt, GUARD.patrolSpeed) ? 'step' : null;
+  return guardStepped(guard, dt, guard.patrolSpeed) ? 'step' : null;
 }
