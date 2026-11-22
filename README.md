@@ -7,16 +7,19 @@
 A top-down stealth game in a museum at night, for the make.fun bounty
 [Make the best stealth game](https://make.fun/bounty/best-stealth-game-20261121-1759).
 
-**The job:** four heists, one museum, one night. Steal the Moon Opal
+**The job:** five heists, one museum, one night. Steal the Moon Opal
 from the North Gallery, the Star Sapphire from the Vault Hall, the
-Gilded Idol from the Cellar, and the Obsidian Crown from the Crown Vault
-— then reach the green EXIT unseen, four times over. Twenty guards walk
-patrol loops with wide yellow vision cones, seven wall cameras sweep
-orange cones across the halls, and seven red laser tripwires pulse live
-and dark across the doorways. Display cases, planters and pillars block
-sight as well as movement, so the route is patience: watch a cone sweep
-past, cross a laser on the dark beat, slip behind cover, and cross while
-the guard looks away.
+Gilded Idol from the Cellar, the Obsidian Crown from the Crown Vault,
+and the Crimson Ruby from the Crimson Vault — then reach the green EXIT
+unseen, five times over. Twenty-six guards walk patrol loops with wide
+yellow vision cones, nine wall cameras sweep orange cones across the
+halls, and nine red laser tripwires pulse live and dark across the
+doorways. Display cases, planters and pillars block sight as well as
+movement, so the route is patience: watch a cone sweep past, cross a
+laser on the dark beat, slip behind cover, and cross while the guard
+looks away. Each heist is rated one to three stars — three only for
+every gem and a ghost run, never seen at all — and a ghost heist pays
+a 500-point bonus.
 
 **The stakes:** a detection meter fills while any guard, camera or live
 laser sees you and drains while you stay hidden. At 55% the nearest
@@ -51,17 +54,18 @@ until your first key press or click.
 `game/` and `screenshots/` to `/output` and writes `/output/dossier.json`
 with the kit's `buildDossier`. The four screenshots are real renders of
 the game's own code, staged with `?shot=start|play|gadget|end&seed=1`:
-the Crown Vault at patrol with both lasers live, the thief mid-heist in
-the Crown Vault with the lasers dark, a smoke vial and a lure pulling a
+the Crimson Vault at patrol with both lasers live, the thief mid-heist in
+the Crimson Vault with the lasers dark, a smoke vial and a lure pulling a
 guard off his route in the Vault Hall, and the clean getaway after all
-four heists.
+five heists.
 
 **Verified:** the careful autopilot (`game/src/pilot.js`) wins every
 heist — the Moon Opal in 45 seconds (1,925 points), the Star Sapphire in
 115 seconds (2,175 points, all five gems), the Gilded Idol in 47 seconds
 (2,370 points, all four gems), the Obsidian Crown in 139 seconds (1,610
-points) — and the whole campaign in 346 seconds (8,080 points, 12 of 19
-gems). The reckless autopilot is caught in every heist (3, 2, 16 and 7
+points), the Crimson Ruby in 33 seconds (2,135 points) — and the whole
+campaign in 379 seconds (10,215 points, 14 of 24 gems, 7 of 15 stars).
+The reckless autopilot is caught in every heist (3, 2, 16, 7 and 21
 seconds). The laser tripwires were unit-checked: standing on a live beam
 fills the meter, the dark beat leaves it at zero, and an EMP darkens a
 beam for 6 seconds. Every hiding spot the pilot retreats to was proven

@@ -1,4 +1,4 @@
-// Moonlight Gallery: four heists in one museum, each a level of its own.
+// Moonlight Gallery: five heists in one museum, each a level of its own.
 // Every heist is a room (or two) the thief crosses top-down: blockers that
 // stop movement and sight, guards on patrol loops a player can learn,
 // cameras sweeping their cones, laser tripwires that pulse live and dark,
@@ -9,7 +9,12 @@
 // heist 2 adds two cameras and three more guards to a vault hall; heist 3,
 // the cellar, is tighter still, with five guards, two cameras and a guard
 // who patrols straight through the door between the halls; heist 4, the
-// Crown Vault, is the hardest hall: six guards, two cameras, two lasers.
+// Crown Vault, is the hardest hall: six guards, two cameras, two lasers;
+// heist 5, the Crimson Vault, mirrors the Crown Vault's geometry east for
+// west — same two-door wall, same cover — but the patrols run the other
+// way, the door guard walks the east gap, and the second camera watches
+// from the west wall, so the timing a player learned in heist 4 does not
+// carry over untouched.
 //
 // Every blocker is an axis-aligned rectangle: walls, cases, planters and
 // pillars all block movement and a guard's line of sight, so hiding behind
@@ -489,6 +494,146 @@ export const LEVELS = [
       { x: 640, y: 580 },
       { x: 640, y: 90 },
       { x: 470, y: 380 },
+      { x: 70, y: 660 },
+    ],
+  },
+  {
+    name: 'The Crimson Vault',
+    subtitle: 'Crimson Vault — six guards, two cameras, two lasers',
+    artifact: { name: 'CRIMSON RUBY', x: 640, y: 90 },
+    spawn: { x: 1200, y: 650 },
+    loot: [
+      { x: 1160, y: 90, taken: false },
+      { x: 120, y: 90, taken: false },
+      { x: 980, y: 650, taken: false },
+      { x: 300, y: 650, taken: false },
+      // North of the (560,600) case: 20 px clear of it, inside the
+      // 30 px pickup radius from the north side.
+      { x: 640, y: 580, taken: false },
+    ],
+    guards: [
+      {
+        name: 'Sable',
+        // East-first around the north loop, like Kara in the Crown
+        // Vault: the pilot proved that timing, and the reversed loop
+        // killed it in the north hall (the pilot died at (534,185)
+        // retreating west while Sable came south on the west side).
+        waypoints: [
+          { x: 200, y: 120 },
+          { x: 1080, y: 120 },
+          { x: 1080, y: 300 },
+          { x: 200, y: 300 },
+        ],
+      },
+      {
+        name: 'Rufus',
+        waypoints: [
+          { x: 340, y: 440 },
+          { x: 340, y: 660 },
+          { x: 880, y: 660 },
+          { x: 880, y: 440 },
+        ],
+      },
+      {
+        name: 'Ilsa',
+        waypoints: [
+          { x: 130, y: 160 },
+          { x: 130, y: 330 },
+        ],
+      },
+      {
+        name: 'Otto',
+        waypoints: [
+          { x: 1150, y: 160 },
+          { x: 1150, y: 330 },
+        ],
+      },
+      {
+        name: 'Cleo',
+        waypoints: [
+          { x: 980, y: 480 },
+          { x: 300, y: 480 },
+        ],
+      },
+      {
+        // Boris patrols straight through the east door gap, like Petr in
+        // the Crown Vault walks the west one: his vertical legs sit at
+        // x 790 and 830, inside the 760..860 gap, never through the wall.
+        name: 'Boris',
+        waypoints: [
+          { x: 830, y: 220 },
+          { x: 790, y: 220 },
+          { x: 790, y: 540 },
+          { x: 830, y: 540 },
+        ],
+      },
+    ],
+    cameras: [
+      { name: 'CAM A', x: 640, y: 24, baseAngle: Math.PI / 2, sweepAmp: 0.7, sweepSpeed: 0.4, phase: 0.9 },
+      { name: 'CAM B', x: 24, y: 360, baseAngle: 0, sweepAmp: 0.7, sweepSpeed: 0.55, phase: 2.4 },
+    ],
+    // A tripwire across each door gap: the east one guards the route the
+    // pilot takes, the west one the way back.
+    lasers: [
+      { name: 'LASER 1', x1: 760, y1: 360, x2: 860, y2: 360, phase: 0.5 },
+      { name: 'LASER 2', x1: 280, y1: 360, x2: 400, y2: 360, phase: 1.0 },
+    ],
+    // Middle wall, with two door gaps (x 280..400 and x 760..860).
+    walls: [
+      { x: 860, y: 350, w: 400, h: WALL, kind: 'wall' },
+      { x: 400, y: 350, w: 360, h: WALL, kind: 'wall' },
+      { x: 20, y: 350, w: 260, h: WALL, kind: 'wall' },
+    ],
+    cases: [
+      { x: 850, y: 140, w: 90, h: 50, kind: 'case' },
+      { x: 370, y: 140, w: 90, h: 50, kind: 'case' },
+      { x: 560, y: 230, w: 160, h: 50, kind: 'case' },
+      { x: 950, y: 520, w: 90, h: 50, kind: 'case' },
+      { x: 190, y: 520, w: 90, h: 50, kind: 'case' },
+      { x: 560, y: 600, w: 160, h: 50, kind: 'case' },
+    ],
+    planters: [
+      { x: 1160, y: 300, w: 60, h: 60, kind: 'planter' },
+      { x: 60, y: 300, w: 60, h: 60, kind: 'planter' },
+      { x: 1100, y: 580, w: 60, h: 60, kind: 'planter' },
+      { x: 100, y: 580, w: 60, h: 60, kind: 'planter' },
+    ],
+    pillars: [
+      { x: 920, y: 200, w: 60, h: 60, kind: 'pillar' },
+      { x: 300, y: 200, w: 60, h: 60, kind: 'pillar' },
+      { x: 920, y: 560, w: 60, h: 60, kind: 'pillar' },
+    ],
+    /** Hiding spots: the Crown Vault's spots mirrored east for west, plus
+     *  the spawn. The safe-spot scan decides which of these the pilot
+     *  may actually wait on — a mirrored spot is not safe until the scan
+     *  proves it against this heist's patrols. The (280,200) draft spot
+     *  failed the scan (Sable's north loop sees it, meter 13.5) and was
+     *  replaced by (40,320) on the west wall, which the grid scan proved
+     *  safe. */
+    hideSpots: [
+      { x: 80, y: 650 },
+      { x: 1240, y: 400 },
+      { x: 1240, y: 560 },
+      { x: 40, y: 400 },
+      { x: 40, y: 320 },
+      { x: 1080, y: 560 },
+      { x: 1200, y: 650 },
+    ],
+    /** The thief's route to a clean getaway: the south gem, the west
+     *  door, the Ruby's gem, the west door again, the Ruby, back to the
+     *  west door, then the exit. Every wall crossing uses the WEST door
+     *  (340,380): the east door is Boris's beat, and the Crown Vault
+     *  proved the east door's waiting spot sits in the north guard's
+     *  cone arc — the first draft of this route died there at 52.7 s.
+     *  The north gems at (120,90) and (1160,90) are left for the player:
+     *  the heist is winnable, the gems are a dare, not the route. */
+    winRoute: [
+      { x: 980, y: 650 },
+      { x: 340, y: 380 },
+      { x: 640, y: 580 },
+      { x: 340, y: 380 },
+      { x: 640, y: 90 },
+      { x: 340, y: 380 },
       { x: 70, y: 660 },
     ],
   },

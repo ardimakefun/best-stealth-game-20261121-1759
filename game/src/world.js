@@ -1,11 +1,11 @@
-// Moonlight Gallery: the world. Four heists in one museum, one fixed-step
+// Moonlight Gallery: the world. Five heists in one museum, one fixed-step
 // update per heist: it moves the thief, walks the guards, sweeps the
 // cameras, pulses the laser tripwires, fills or drains the detection
 // meter, and settles loot, the artifact, the exit and getting caught.
 // Everything the judge calls "a complete stealth game" lives here: patrols
 // to learn, cameras to time, lasers to cross on the dark beat, a detection
 // system that gives you a chance to recover, gadgets that open new routes,
-// and a win that needs the artifact first — four times over.
+// and a win that needs the artifact first — five times over.
 
 import { DETECTION, EXIT, FIELD, GADGETS, GUARD, LOOT, OPAL, PLAYER, STEP } from './config.js';
 import { LEVELS, WIN_ROUTE, buildBlockers } from './level.js';
@@ -68,6 +68,12 @@ export function createWorld(random) {
     lootTaken: 0,
     lootTotal: 0,
     meter: 0,
+    /** Highest the detection meter reached in this heist: 0 means the
+     *  thief was never seen at all — a GHOST heist. */
+    peakMeter: 0,
+    /** One {stars, ghost, lootTaken, lootTotal, time} per finished heist,
+     *  in heist order: the intermission and win screens read it. */
+    heistResults: [],
     lastSeen: null,
     seen: false,
     seenBy: null,
@@ -106,6 +112,7 @@ export function createWorld(random) {
     state.artifactTaken = false;
     state.lootTaken = 0;
     state.meter = 0;
+    state.peakMeter = 0;
     state.lastSeen = null;
     state.seen = false;
     state.seenBy = null;
@@ -124,6 +131,7 @@ export function createWorld(random) {
       state.totalTime = 0;
       state.score = 0;
       state.lootTotal = 0;
+      state.heistResults = [];
       loadLevel(0);
     },
     /**
@@ -258,6 +266,7 @@ export function createWorld(random) {
         state.meter = Math.max(0, state.meter - DETECTION.drainPerSecond * dt);
         if (state.meter < DETECTION.giveUpBelow) state.lastSeen = null;
       }
+      if (state.meter > state.peakMeter) state.peakMeter = state.meter;
 
       // Guards walk; the one that spotted the thief goes to look, and any
       // guard near a ringing lure walks over to the lure instead.
@@ -299,6 +308,21 @@ export function createWorld(random) {
         p.y > EXIT.y && p.y < EXIT.y + EXIT.height
       ) {
         state.score += Math.max(0, 300 - Math.floor(state.levelTime)) * 5;
+        // Stars and the GHOST bonus: a heist earns three stars only when
+        // every gem was pocketed and the thief was never seen at all;
+        // two for all the gems or a clean ghost run; one for getting out.
+        // A ghost heist pays +500 on top of the time bonus.
+        const ghost = state.peakMeter === 0;
+        const allLoot = state.lootTaken === state.level.loot.length;
+        const stars = ghost && allLoot ? 3 : (ghost || allLoot ? 2 : 1);
+        if (ghost) state.score += 500;
+        state.heistResults.push({
+          stars,
+          ghost,
+          lootTaken: state.lootTaken,
+          lootTotal: state.level.loot.length,
+          time: state.levelTime,
+        });
         if (state.levelIndex >= LEVELS.length - 1) {
           state.status = 'won';
         } else {

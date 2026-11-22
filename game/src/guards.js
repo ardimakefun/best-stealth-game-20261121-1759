@@ -1,4 +1,4 @@
-// Guards: three night guards on patrol loops they never leave, until one of
+// Guards: night guards on patrol loops they never leave, until one of
 // them spots the thief. A suspicious guard walks to the last place the thief
 // was seen, looks around, and goes back to patrol if nothing is there.
 //

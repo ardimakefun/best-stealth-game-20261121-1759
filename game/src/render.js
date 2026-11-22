@@ -468,7 +468,7 @@ export function createRenderer(canvas) {
 
     if (screen === SCREEN_TITLE) {
       drawOverlay('MOONLIGHT GALLERY', [
-        'A thief. A museum. Four heists, twenty guards, seven cameras, seven lasers.',
+        'A thief. A museum. Five heists, twenty-six guards, nine cameras, nine lasers.',
         'Steal each artifact, then reach the green EXIT — unseen.',
         'Hide behind cases and planters: a guard only sees',
         'what its yellow cone touches with a clear line of sight.',
@@ -481,21 +481,36 @@ export function createRenderer(canvas) {
     } else if (screen === SCREEN_PAUSED) {
       drawOverlay('PAUSED', ['Press P or SPACE to keep sneaking.'], PALETTE.muted);
     } else if (screen === SCREEN_NEXT) {
-      drawOverlay('HEIST COMPLETE', [
+      // The heist just finished: its stars, and whether the thief was
+      // never seen at all. The result sits at this heist's index — the
+      // next heist only loads when the player confirms.
+      const result = state.heistResults[state.levelIndex];
+      const lines = [
         `${state.level.artifact.name} secured — ${state.score} points so far.`,
+      ];
+      if (result) {
+        const stars = '★'.repeat(result.stars) + '☆'.repeat(3 - result.stars);
+        lines.push(`${stars} — ${result.stars} star${result.stars === 1 ? '' : 's'}${result.ghost ? ' · GHOST — never seen! +500' : ''}`);
+      }
+      lines.push(
         `Next: ${LEVELS[state.levelIndex + 1].name} — ${LEVELS[state.levelIndex + 1].subtitle}.`,
         '',
         'Press SPACE or click for the next heist',
-      ], PALETTE.exit);
+      );
+      drawOverlay('HEIST COMPLETE', lines, PALETTE.exit);
     } else if (screen === SCREEN_OVER && state.status === 'won') {
       const totalLoot = LEVELS.reduce((n, l) => n + l.loot.length, 0);
-      drawOverlay('CLEAN GETAWAY', [
-        `All four artifacts out in ${formatTime((state.totalTime ?? 0) + state.time)} — ${state.score} points.`,
+      const totalStars = state.heistResults.reduce((n, r) => n + r.stars, 0);
+      const ghosts = state.heistResults.filter((r) => r.ghost).length;
+      const lines = [
+        `All five artifacts out in ${formatTime((state.totalTime ?? 0) + state.time)} — ${state.score} points.`,
         `${state.lootTotal}/${totalLoot} gems pocketed along the way.`,
+        `Stars: ${totalStars}/${LEVELS.length * 3}${ghosts > 0 ? ` · GHOST heists: ${ghosts} — never seen!` : ''}`,
         state.score > best ? 'A new best getaway!' : `Best getaway: ${best} points.`,
         '',
         'Press SPACE or click to play again',
-      ], PALETTE.exit);
+      ];
+      drawOverlay('CLEAN GETAWAY', lines, PALETTE.exit);
     } else if (screen === SCREEN_OVER) {
       drawOverlay('CAUGHT!', [
         'A guard saw you. The alarm is ringing.',
